@@ -9,7 +9,7 @@ The repo contains .py files for pre processing of input data and examples of sec
 - helpers.py contains funcitons
 - pre-processing.py contains the main calculations for efficiencies and costs in the multilink, and an example of the code in pypsa 
 - cost-2030.csv is an output file from the technology-data repository to be updated with the cost for GBR and perennials 
-
+- biofuels to perennials.xlsx is an excelfile with the initial calculations for the CO2 seq potentials for perennials
 
 ### PERENNIALS 
 Assumptions for modelling perennials and green biorefining implemented in the code: 
@@ -19,7 +19,7 @@ Assumptions for modelling perennials and green biorefining implemented in the co
    Reference: https://dcapub.au.dk/djfpublikation/djfpdf/DCArapport193.pdf 
 4) Yield of perennials is assumed to be 15 t/ha/y in dry matter
    Reference: https://dcapub.au.dk/djfpublikation/djfpdf/DCArapport193.pdf
-5) Green crops (perennials) have a continous effect on reducing GHG, however the production of perennials (hence of energy products) is only during the April-Octobe
+5) Green crops (perennials) have a continous effect on reducing GHG, however the harvest of perennials (hence of energy products) is only during the April-Octobe
 
 ### Green biorefining
 Green biorefining (GBR) is a process (moslty based on microfiltraiton) where fresh green biomass are separated into products.
@@ -34,6 +34,6 @@ Assumptions for modelling of green biorefining
 
 ### PyPSA multilink 
 1) all efficiencies and cost are calcualted base on bus0 (CO2e removed from atm)
-2) p_max_pu of the multilink is == 1 in April -October and 0 during the rest of the year
+2) p_max_pu of the multilink is == 1 in April - October and 0 during the rest of the year
 3) the potential for CO2 reduction (in tCO2/y) is calcualted per node assuming that the node corresponds to NTSU0
 
