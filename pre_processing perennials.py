@@ -45,10 +45,14 @@ GBR_VOM_co2 = p.tot_opex / p.USD_to_EUR / p.peren_input_cost * peren_CO2atm *1e6
 cost_add_technology(p.discount_rate, tech_costs, 'Perennials_GBR', GBR_inv_co2 * 1e6,
                     p.lifetime, 0, GBR_VOM_co2)
 
-# TODO Adress :(GBR produces only April-October, Cseq during whole year but energy prod is not)
+# NOTE perennials are harvested only April-October, Cseq during whole year but energy prod is not)
+date_range = pd.date_range(start="2050-01-01 00:00", end="2050-12-31 23:00", freq="H")
+df_gbr = pd.DataFrame(index=date_range, columns=["harvest"])
+df_gbr["harvest"] = df_gbr.index.month.isin([4, 5, 6, 7, 8, 9, 10]).astype(int)
 
 """ Code to add link in PyPSA,
 NOTE: it requires an existing pypsa network"""
+
 n.add('Bus','CO2s_perennials',carrier = 'CO2', unit = 't')
 
 n.add('Link',
@@ -61,6 +65,7 @@ n.add('Link',
       efficiency2 = -eff_el,
       efficiency3 = eff_biogas,
       p_nom_extendable=True,
+      p_max_pu = df_gbr["harvest"],
       capital_cost=tech_costs.at['Perennials_GBR', "fixed"],
       marginal_cost=tech_costs.at['Perennials_GBR', "VOM"])
 
@@ -70,9 +75,6 @@ n.add('Store',
       e_nom_extendable= False,
       e_nom_max = CO2s_potential_perennials,
       e_cyclic = False)
-
-
-
 
 
 
