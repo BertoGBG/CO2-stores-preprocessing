@@ -7,8 +7,10 @@ Perennials and green biorefining are modelled in PyPSA according to the followin
 The repo contains .py files for pre processing of input data and examples of sections of pypsa netowrks
 - parameters.py contains the input parameters
 - helpers.py contains funcitons
-- pre-processing.py contains the main calculations for efficiencies and costs in the multilink, and an example of the code in pypsa 
-- cost-2030.csv is an output file from the technology-data repository to be updated with the cost for GBR and perennials 
+- pre-processing.py contains the main calculations for efficiencies and costs in the multilink
+- pypsa_example.py : and an example of the code in pypsa 
+- cost-2030.csv is an output file from the technology-data repository to be updated with the cost for GBR and perennials
+- ENSPRESO_NUTS0_2030_medium.xlsx contains an extracted of the ENSPRESO database for the medium scenarion 2030, it is used to calculate potentials for perennials
 - biofuels to perennials.xlsx is an excelfile with the initial calculations for the CO2 seq potentials for perennials
 
 ### PERENNIALS 
