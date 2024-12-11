@@ -67,5 +67,6 @@ def potential_perennials_NUTS0(file_path):
 
     # return potential per country in areas availble for perennials (Mha)
     df_NUTS0_potential = df_jrc.groupby('NUTS0')['CO2_seq (MtCO2/y)'].sum()
+    df_NUTS0_potential_area = df_jrc.groupby('NUTS0')['Area (Mha)'].sum()
 
-    return df_NUTS0_potential
+    return df_NUTS0_potential, df_NUTS0_potential_area

@@ -27,8 +27,8 @@ bus 3 : biogas, unit :  MWh
 """
 """Potential per node"""
 node= 'DE' # example
-CO2s_potentials = potential_perennials_NUTS0(p.file_path_NUTS0)
-CO2s_potential_perennials = CO2s_potentials[node]
+df_NUTS0_potential, df_NUTS0_potential_area = potential_perennials_NUTS0(p.file_path_NUTS0)
+CO2s_potential_perennials = df_NUTS0_potential[node]
 
 """ add data to tech_cost DF (from technology data) """
 peren_CO2atm = (p.Y_perennials/p.DM_perennials) / p.CO2e_seq_ha # t fresh biomass / CO2atm
