@@ -1,3 +1,4 @@
+import pandas as pd
 '''ECONOMICS AND COST ASSUMPTIONS'''
 '''Technology Data Economic Parameters'''
 year_EU = 2030  # invesment year -> MUST be set > 2030
@@ -35,6 +36,21 @@ ref: R1 """
 peren_input_cost = 40 # t/h
 tot_capex = 9.33 # M USD # based on Danish prices
 tot_opex =  6.05 -0.11- 5.25 # M USD / y  # including cost of fresh biomass and wuick transport) and sales of proteins, but excluding Electricity
+# TODO double check the calculations form R1, and the prices of biomass and protein product
 flh_y = 4200 # green crops harvest is only May-October --> need a time series for biogas and residues produciton
 year_cost = 2020
 
+""" assumptions on yields enspresso """
+# assumpiton of Yeilds in PJ/Mha
+# ref:
+# MINBIOCRP11:European Biomass Industry Association (EUBIA)
+# MINBIOCRP21: European Commission and FAO reports on bioenergy
+# MINBIORPS1 : EUBIA and EU Biodiesel Fact Sheets
+
+file_path_NUTS0 = 'ENSPRESO_NUTS0_2030_medium.xlsx'
+
+jrc_yields_assumptions = {
+    'MINBIOCRP11': 0.00008018*1e6,
+    'MINBIOCRP21': 0.00013715*1e6,
+    'MINBIORPS1': 0.00004296*1e6
+}

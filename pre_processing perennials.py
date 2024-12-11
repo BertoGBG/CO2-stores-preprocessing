@@ -26,7 +26,9 @@ bus 2 : el, unit : MWh_el
 bus 3 : biogas, unit :  MWh
 """
 """Potential per node"""
-CO2s_potential_perennials = p.arable_land_node * p.CO2e_seq_ha
+node= 'DE' # example
+CO2s_potentials = potential_perennials_NUTS0(p.file_path_NUTS0)
+CO2s_potential_perennials = CO2s_potentials[node]
 
 """ add data to tech_cost DF (from technology data) """
 peren_CO2atm = (p.Y_perennials/p.DM_perennials) / p.CO2e_seq_ha # t fresh biomass / CO2atm
@@ -50,31 +52,6 @@ date_range = pd.date_range(start="2050-01-01 00:00", end="2050-12-31 23:00", fre
 df_gbr = pd.DataFrame(index=date_range, columns=["harvest"])
 df_gbr["harvest"] = df_gbr.index.month.isin([4, 5, 6, 7, 8, 9, 10]).astype(int)
 
-""" Code to add link in PyPSA,
-NOTE: it requires an existing pypsa network"""
-
-n.add('Bus','CO2s_perennials',carrier = 'CO2', unit = 't')
-
-n.add('Link',
-      'perennials_GBR',
-      bus0="CO2_atm",
-      bus1="CO2s_perennials",
-      bus2="el",
-      bus3 ="biogas",
-      efficiency=1,
-      efficiency2 = -eff_el,
-      efficiency3 = eff_biogas,
-      p_nom_extendable=True,
-      p_max_pu = df_gbr["harvest"],
-      capital_cost=tech_costs.at['Perennials_GBR', "fixed"],
-      marginal_cost=tech_costs.at['Perennials_GBR', "VOM"])
-
-n.add('Store',
-      'CO2s_perennials',
-      bus= 'CO2s_perennials',
-      e_nom_extendable= False,
-      e_nom_max = CO2s_potential_perennials,
-      e_cyclic = False)
 
 
 

@@ -55,4 +55,17 @@ def cost_add_technology(discount_rate, tech_costs, technology, investment, lifet
     return tech_costs
 
 
+def potential_perennials_NUTS0(file_path):
+    '''calculates the potential in tCO2e/y for perennials per each NUTS0 '''
+    #file_path = p.file_path_NUTS0
+    df_jrc_imp = pd.read_excel(file_path)
+    df_jrc = df_jrc_imp[df_jrc_imp['Energy Commodity'].isin(p.jrc_yields_assumptions.keys())]
+    df_jrc = df_jrc.assign(Yield_assumption=df_jrc['Energy Commodity'].map(p.jrc_yields_assumptions))
+    df_jrc['Yield unit'] = 'PJ/Mha'
+    df_jrc['Area (Mha)'] = df_jrc['Value'] / df_jrc['Yield_assumption']
+    df_jrc['CO2_seq (MtCO2/y)'] = df_jrc['Area (Mha)']* p.CO2e_seq_ha
 
+    # return potential per country in areas availble for perennials (Mha)
+    df_NUTS0_potential = df_jrc.groupby('NUTS0')['CO2_seq (MtCO2/y)'].sum()
+
+    return df_NUTS0_potential
