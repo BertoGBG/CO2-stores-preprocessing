@@ -1,8 +1,0 @@
-# This folder contains the files to create inputs for modelling afforestation in pypsa-eur with NUTS2 resolution
-# The retrieve_afforestation.py file retrieves the zenodo database from CBM model (JRC) and saves 3 key csv files with in resources/forests. It can be integrated with pypsa-eur
-# The build_afforestation_rate_nuts2.py build a csv file saved in data/afforestation . The csv file contains a mapping for each NUTS2 region to the stock-weighted average afforestation rate (m3 ha-1 y-1) for young forests (age <10 years)
-# Folder data also contains a copy of PyPSA-eur data/nuts folder which contains the geojeson files for nuts2, which are used in pypsa-eur
-# The code can be direclty integrated in pypsa-eur
-
-# Method for calcualtion of the afforestation growth rate is explained within retrieve_afforestation.py
-
