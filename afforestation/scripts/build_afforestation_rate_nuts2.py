@@ -167,14 +167,14 @@ df_aff_rate.loc[mask, "NUTS2"] = df_aff_rate.loc[mask, "region"]
 
 # Mapping to pypsa-eur NUTS2
 # Load NUTS2 geometry and set index
-nuts2_gdf = gpd.read_file("data/nuts/NUTS_RG_03M_2013_4326_LEVL_2.geojson")
+nuts2_gdf = gpd.read_file("data/nuts/NUTS_RG_01M_2021_4326_LEVL_2.geojson")
 nuts2_gdf = nuts2_gdf[["NUTS_ID", "NUTS_NAME", "CNTR_CODE", "geometry"]]
 nuts2_gdf = nuts2_gdf.set_index("NUTS_ID")
 nuts_lookup = nuts2_gdf[["NUTS_NAME", "CNTR_CODE"]]
 
 cols_affo_nuts2 = [
     "Country",
-    "NAI_evenaged_stands (m3 ha-1 y-1)",
+    "afforestation growth rate (m3 ha-1 y-1)",
     "AgeCL (max)",
     "Forest type",
 ]
