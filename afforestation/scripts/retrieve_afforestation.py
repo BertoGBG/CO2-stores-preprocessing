@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2024 Alberto Alamia <your.email@domain.com>
+# SPDX-FileCopyrightText: 2024 Alberto Alamia <alamia@mpe.au.dk>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """
