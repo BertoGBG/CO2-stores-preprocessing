@@ -1,3 +1,28 @@
+# SPDX-FileCopyrightText: 2024 Alberto Alamia <alamia@mpe.au.dk>
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""
+Compute afforestation growth rate and stock per NUTS2 region
+Reference: 10.2760/222407
+
+
+UNITS (stored in documentation):
+- Afforestation growth rate: t ha-1 y-1
+
+Mapping logic from CBM dataset:
+
+NUTS2 afforestation rate, fall-back strategy:
+ 1) Use NUTS2 value directly if available in the dataset
+ 2) Else, fallback to NUTS1 value if available
+ 3) Fill with avg NUTS2 Neighbours values
+ 4) fill with NUTS0 average data
+ 4) UK (missing data): fill with nearest region with data
+ 5) Malta and Cyprus are set equal to EL43 (Crete)
+
+Author: Alberto Alamia
+Date: 2025-10-14
+"""
+
 from pathlib import Path
 import pandas as pd
 import geopandas as gpd
@@ -103,7 +128,7 @@ def main():
     df_affo["value"] = df_affo.apply(lambda r: fill_from_neighbors(r, neighbors_dict, df_affo), axis=1)
     df_affo.loc[df_affo["Source"].isna() & df_affo["value"].notna(), "Source"] = "avg nuts2 near"
 
-    # ---- UK-specific fallback (Lack of UK data and no island without direct neighbours) : NUTS1 mean -> nearest within UK ----
+    # ---- UK-specific fallback (Lack of data for UK and island without direct neighbours) : NUTS1 mean -> nearest within UK ----
     # we'll need NUTS0 and NUTS1 tags
     df_affo["NUTS0"] = df_affo.index.str[:2]
     df_affo["NUTS1"] = df_affo.index.str[:3]
@@ -220,7 +245,8 @@ def main():
         print("[ok] No missing NUTS-2 values.")
 
     out = df_affo.drop(columns=["NUTS0"])
-    out.rename(columns={"value": "affo rate (t/ha)"}, inplace=True)
+    out.rename(columns={"value": "affo rate (t/ha/y)"}, inplace=True)
+    out.rename(columns={"NUTS_ID": "NUTS2"}, inplace=True)
     out.sort_index(inplace=True)
     OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(OUT_CSV)
