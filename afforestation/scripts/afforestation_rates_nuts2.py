@@ -96,9 +96,11 @@ def main():
     direct_map = build_direct_mapping(df_nai, nuts2.index)
 
     # 3) Output df
-    df_affo = pd.DataFrame(index=nuts2.index, columns=["value", "Source"], data=np.nan)
+    df_affo = pd.DataFrame(index=nuts2.index, columns=["value", "Source"], data=np.nan) \
+        .astype({"Source": "string"})
     df_affo.loc[direct_map.index, "value"] = direct_map.values
     df_affo.loc[direct_map.index, "Source"] = "direct"
+
 
     # 4) Fallback 1: NUTS-1 → NUTS-2 propagation (if data available only at NUTS1)
     colN, colO = df_nai.columns[1], df_nai.columns[2]
@@ -246,7 +248,7 @@ def main():
 
     out = df_affo.drop(columns=["NUTS0"])
     out.rename(columns={"value": "affo rate (t/ha/y)"}, inplace=True)
-    out.rename(columns={"NUTS_ID": "NUTS2"}, inplace=True)
+    out.index.name = "NUTS2"
     out.sort_index(inplace=True)
     OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(OUT_CSV)
