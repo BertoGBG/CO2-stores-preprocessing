@@ -29,6 +29,9 @@ import geopandas as gpd
 import numpy as np
 import requests
 
+avg_life_young_forest = 10  # years
+
+
 # ----helpers -----
 def build_direct_mapping(df_nai: pd.DataFrame, nuts_index: pd.Index) -> pd.Series:
     value_col = df_nai.columns[-1]
@@ -85,8 +88,8 @@ def main():
     # 1) Load Excel (M:P) and NUTS2 2013 geometry
     df_nai = pd.read_excel(CBM_XLS, sheet_name="INPUT CBM", usecols="M:P", skiprows=1)
     df_nai.columns = [c.strip() for c in df_nai.columns]
-    value_col = df_nai.columns[-1]                                 # NEW: cache value col
-    df_nai[value_col] = pd.to_numeric(df_nai[value_col], errors="coerce")  # NEW: ensure numeric
+    value_col = df_nai.columns[-1]
+    df_nai[value_col] = pd.to_numeric(df_nai[value_col], errors="coerce")
 
     nuts2 = gpd.read_file(str(NUTS2_2013_GEOJSON)) \
                .loc[:, ["NUTS_ID", "NUTS_NAME", "CNTR_CODE", "geometry"]] \
@@ -108,8 +111,8 @@ def main():
     for c in (colN, colO):
         t = df_nai[[c, value_col]].copy()
         t[c] = t[c].astype(str).str.strip()
-        t[value_col] = pd.to_numeric(t[value_col], errors="coerce")          # NEW
-        t = t[t[c].str.fullmatch(r"^[A-Z]{2}[A-Z0-9]$")]                      # NEW stricter
+        t[value_col] = pd.to_numeric(t[value_col], errors="coerce")
+        t = t[t[c].str.fullmatch(r"^[A-Z]{2}[A-Z0-9]$")]
         if not t.empty:
             t = t.drop_duplicates(c).set_index(c)[value_col]
             nuts1_series = nuts1_series.combine_first(t)
@@ -247,6 +250,7 @@ def main():
         print("[ok] No missing NUTS-2 values.")
 
     out = df_affo.drop(columns=["NUTS0"])
+    out.loc[:,'value'] = out.loc[:,'value'] / avg_life_young_forest
     out.rename(columns={"value": "affo rate (t/ha/y)"}, inplace=True)
     out.index.name = "NUTS2"
     out.sort_index(inplace=True)
