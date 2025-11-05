@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-Compute afforestation growth rate and stock per NUTS2 region
+Compute afforestation_perennials growth rate and stock per NUTS2 region
 Reference: 10.2760/222407
 
 
@@ -11,7 +11,7 @@ UNITS (stored in documentation):
 
 Mapping logic from CBM dataset:
 
-NUTS2 afforestation rate, fall-back strategy:
+NUTS2 afforestation_perennials rate, fall-back strategy:
  1) Use NUTS2 value directly if available in the dataset
  2) Else, fallback to NUTS1 value if available
  3) Fill with avg NUTS2 Neighbours values
@@ -29,8 +29,8 @@ import geopandas as gpd
 import numpy as np
 import requests
 
-avg_life_young_forest = 10  # years
 
+avg_life_young_forest = 10  # years
 
 # ----helpers -----
 def build_direct_mapping(df_nai: pd.DataFrame, nuts_index: pd.Index) -> pd.Series:
@@ -72,10 +72,9 @@ def download_file(url: str, dest: Path, chunk_size: int = 1 << 14) -> None:
 
 def main():
     PROJECT_ROOT = Path(__file__).resolve().parents[1] if "__file__" in globals() else Path.cwd()
-
     CBM_XLS = PROJECT_ROOT / "resources" / "forests" / "Biomass_calculations.xlsx"
     NUTS2_2013_GEOJSON = PROJECT_ROOT / "data" / "nuts" / "NUTS_RG_03M_2013_4326_LEVL_2.geojson"
-    OUT_CSV = PROJECT_ROOT / "data" / "afforestation" / "afforestation_nuts2.csv"
+    OUT_CSV = PROJECT_ROOT / "data" / "afforestation_perennials" / "afforestation_nuts2.csv"
     OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
 
     # ---- Pre: Download CBM/JRC Excel from Figshare (downloader endpoint) ----
