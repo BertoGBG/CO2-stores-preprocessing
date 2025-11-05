@@ -28,7 +28,7 @@ rule build_afforestation_inputs:
         forest_stocks=resources("forests/Standing_stock_evenaged.csv"),
         nuts2=data("nuts/NUTS_RG_03M_2013_4326_LEVL_2.geojson")
     output:
-        growth_rates_nuts2=data("afforestation/afforestation_nuts2.csv"),
+        growth_rates_nuts2=data("afforestation_perennials/afforestation_nuts2.csv"),
     resources:
         mem_mb=4000,
     log:
