@@ -34,7 +34,7 @@ def harmonize_to_nuts2021(df, keep_col, nuts2021_n2):
     # Country code extraction (first 2 chars)
     df_work['country'] = df_work.index.str[:2]
 
-    # ✅ Fallback 2 — Use NUTS-0 values
+    # Fallback 2 — Use NUTS-0 values
     df_work = df_work.join(
         df_nuts0[[keep_col]].rename(columns={keep_col: 'fallback'}),
         on='country'
@@ -46,31 +46,34 @@ def harmonize_to_nuts2021(df, keep_col, nuts2021_n2):
     nuts_proj = nuts2021_n2.to_crs(epsg=3035)
     gdf = nuts_proj.join(df_work)[[keep_col, 'country', 'geometry']]
 
-    # Fallback 3 — Spatial neighbors mean
-    mask_missing = gdf[keep_col].isna()
+    # Fallback 3 — Spatial neighbors mean or nearest region if island
+    mask_missing = gdf[keep_col].isna() | (gdf[keep_col] <= 0)
     if mask_missing.any():
-        missing_regions = gdf[mask_missing]
-        print(f" Neighbor fallback: {len(missing_regions)} regions")
+        print(f"Spatial fallback required for {mask_missing.sum()} regions")
 
-        # Build neighbors list
-        neighbors = {
-            idx: gdf[gdf.geometry.touches(row.geometry)].index.tolist()
-            for idx, row in gdf.iterrows()
-        }
+        # Pre-calc distance matrix only once
+        valid = gdf[gdf[keep_col].notna() & (gdf[keep_col] > 0)]
 
-        for idx, row in missing_regions.iterrows():
-            neigh_vals = gdf.loc[neighbors[idx], keep_col].dropna()
+        for idx in gdf[mask_missing].index:
+            region = gdf.loc[idx, "geometry"]
+
+            # Touching neighbors
+            neigh_idxs = gdf[gdf.geometry.touches(region)].index.tolist()
+            neigh_vals = gdf.loc[neigh_idxs, keep_col].dropna()
+            neigh_vals = neigh_vals[neigh_vals > 0]
 
             if len(neigh_vals) > 0:
                 gdf.at[idx, keep_col] = neigh_vals.mean()
             else:
-                # If no touching neighbors are valid → nearest non-missing
-                nearest = gdf[gdf[keep_col].notna()].distance(row.geometry).idxmin()
-                gdf.at[idx, keep_col] = gdf.at[nearest, keep_col]
+                # Island fallback: nearest valid NUTS2 region
+                nearest_idx = valid.distance(region).idxmin()
+                gdf.at[idx, keep_col] = valid.at[nearest_idx, keep_col]
+                print(f"fallback for {idx}: nearest = {nearest_idx}")
 
     # Final output tidy
     result = gdf[[keep_col]]
     result.index.name = 'NUTS2'
+    result.sort_index()
     return result
 
 
