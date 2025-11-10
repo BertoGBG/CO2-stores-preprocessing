@@ -352,6 +352,8 @@ def main():
     OUT_CSV_MINBIOCRP21 = PROJECT_ROOT / 'data' / 'crops' / "yields_MINBIOCRP21_nuts2.csv"
     OUT_CSV_MINBIORPS1 = PROJECT_ROOT / 'data' / 'crops' / "yields_MINBIORPS1_nuts2.csv"
     OUT_CSV_MINBIOCRP11 = PROJECT_ROOT / 'data' / 'crops' / "yields_MINBIOCRP11_nuts2.csv"
+    OUT_CSV_YIELDS_ALL = PROJECT_ROOT / 'data' / 'crops' / "yields_perennials_1G_biofuels.csv"
+
 
     OUT_CSV_perennials.parent.mkdir(parents=True, exist_ok=True)
 
@@ -429,12 +431,36 @@ def main():
     yield_MINBIOCRP11_full = harmonize_to_nuts2021(yield_MINBIOCRP11, 'energy_yields_(MWh/ha)', nuts2021_n2)
     yield_MINBIOCRP21_full = harmonize_to_nuts2021(yield_MINBIOCRP21, 'energy_yields_(MWh/ha)', nuts2021_n2)
     yield_MINBIORPS1_full = harmonize_to_nuts2021(yield_MINBIORPS1, 'energy_yields_(MWh/ha)', nuts2021_n2)
-    yields_perennials_full = harmonize_to_nuts2021(perennial_yields, 'weighted_YL_(t/ha)', nuts2021_n2)
     yields_perennials_max_full = harmonize_to_nuts2021(perennial_yields_max, 'YL_(t/ha)', nuts2021_n2)
 
+    yields_perennials_full = harmonize_to_nuts2021(perennial_yields, 'weighted_YL_(t/ha)', nuts2021_n2)
+
+    # collapse into a single data frame
+    # Combine all harmonized results into one table
+    df_yields_all = pd.concat(
+        {
+            "MINBIOCRP11": yield_MINBIOCRP11_full["energy_yields_(MWh/ha)"],
+            "MINBIOCRP21": yield_MINBIOCRP21_full["energy_yields_(MWh/ha)"],
+            "MINBIORPS1": yield_MINBIORPS1_full["energy_yields_(MWh/ha)"],
+            "PERENNIALS_MAX": yields_perennials_max_full["YL_(t/ha)"]
+        },
+        axis=1
+    )
+
+    # Rename columns for clarity
+    df_yields_all.columns = [
+        "Bioethanol barley, wheat, grain maize, oats, other cereals and rye",
+        "Sugar from sugar beet",
+        "Rape seed",
+        "perennials"
+    ]
+
+    # Sort by NUTS2 for consistency
+    df_yields_all = df_yields_all.sort_index()
 
     """ save to csv"""
     # Save the DataFrame
+    df_yields_all.to_csv(OUT_CSV_YIELDS_ALL, index= True)
     yield_MINBIOCRP11_full.to_csv(OUT_CSV_MINBIOCRP11, index=True)
     yield_MINBIOCRP21_full.to_csv(OUT_CSV_MINBIOCRP21, index=True)
     yield_MINBIORPS1_full.to_csv(OUT_CSV_MINBIORPS1, index=True)
