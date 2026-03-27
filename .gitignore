@@ -1,2 +1,3 @@
-Results_analysis/pypsa-eur/base_s_90__Co2L0-3H-T-H-B-I-A-solar+p3-dist1_2050.nc
-Results_analysis/pypsa-eur/base_s_90__Co2L0-3H-T-H-B-I-A-solar+p3-dist1_2050_NO_CDRs.nc
+Results_analysis/
+.DS_Store
+.idea/
