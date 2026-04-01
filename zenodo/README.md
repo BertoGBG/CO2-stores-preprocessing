@@ -1,44 +1,49 @@
-# Overall Reference: 
+# Overall Reference:
 https://arxiv.org/abs/2603.25663
 
 # Afforestation datasets
 
+## Raw input data
+
 Two datasets are retrieved from Figshare:
 
-* `afforestation_nuts_biomass_densities.xlsx`
+* `data/afforestation_nuts_biomass_densities.xlsx`
   Downloaded from: https://ndownloader.figshare.com/files/43678089
 
-* `Biomass_calculations.xlsx`
+* `data/Biomass_calculations.xlsx`
   Downloaded from: https://figshare.com/ndownloader/files/43678533
 
-The script `download_afforestation_and_biomass_data.py` reproduces these downloads.
+Reference: https://www.nature.com/articles/s41597-023-02868-8
 
-No preprocessing is applied at this stage. All further data transformations are implemented within the PyPSA-Eur workflow.
+The script `scripts/download_afforestation_data.py` reproduces these downloads.
 
-The datasets enable the calculation of Afforestation potentials with two different methods
+## Preprocessed output
+
+* `data/afforestation_nuts2.csv`
+  Afforestation growth rate (t ha⁻¹ y⁻¹) per NUTS2 region, derived from the CBM/JRC
+  dataset (`Biomass_calculations.xlsx`). Missing values are filled using a multi-stage
+  fallback strategy (NUTS1 propagation → neighbouring regions → country average → nearest
+  within UK). Malta and Cyprus are assigned the value of Crete (EL43).
+
+The script `scripts/calculate_afforestation_rates_nuts2.py` reproduces this file from
+the downloaded inputs. Run `download_afforestation_data.py` first.
 
 # Raw Eurostat crop data for PyPSA-Eur
 
 This archive contains raw CSV files downloaded from the Eurostat API and used as source data for the PyPSA-Eur workflow.
 
-The datasets enable the conversion of 1st - generation biofuels potentials from ENSPRESSO biomass database to perennials crops for bioenergy and protein production (perennialisation)
+The datasets enable the conversion of 1st-generation biofuels potentials from the ENSPRESSO biomass database to perennial crops for bioenergy and protein production (perennialisation).
 
 ## Contents
 
-- `data/eurostat_apro_cpshr_nuts2_raw.csv`  
+- `data/eurostat_apro_cpshr_nuts2_raw.csv`
   Raw Eurostat download at NUTS2 resolution.
 
-- `data/eurostat_apro_cpshr_nuts0_raw.csv`  
+- `data/eurostat_apro_cpshr_nuts0_raw.csv`
   Raw Eurostat download at country (NUTS0) resolution.
 
-- `scripts/download_eurostat_crop_data.py`  
+- `scripts/download_eurostat_crops.py`
   Script used to retrieve the raw CSV files from the Eurostat API.
-
-## Scope of this archive
-
-This Zenodo record contains only the original downloaded source data and the retrieval script.
-
-These later processing steps are carried out within the PyPSA-Eur workflow.
 
 ## Reproducibility note
 

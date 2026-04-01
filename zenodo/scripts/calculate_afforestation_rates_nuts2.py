@@ -2,22 +2,23 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-Compute afforestation_perennials growth rate and stock per NUTS2 region
+Compute afforestation growth rate and stock per NUTS2 region.
 Reference: 10.2760/222407
 
+Requires the CBM/JRC Excel file downloaded by download_afforestation_data.py.
 
 UNITS (stored in documentation):
 - Afforestation growth rate: t ha-1 y-1
 
 Mapping logic from CBM dataset:
 
-NUTS2 afforestation_perennials rate, fall-back strategy:
+NUTS2 afforestation rate, fall-back strategy:
  1) Use NUTS2 value directly if available in the dataset
  2) Else, fallback to NUTS1 value if available
  3) Fill with avg NUTS2 Neighbours values
- 4) fill with NUTS0 average data
- 4) UK (missing data): fill with nearest region with data
- 5) Malta and Cyprus are set equal to EL43 (Crete)
+ 4) Fill with NUTS0 average data
+ 5) UK (missing data): fill with nearest region with data
+ 6) Malta and Cyprus are set equal to EL43 (Crete)
 
 Author: Alberto Alamia
 Date: 2025-10-14
@@ -27,12 +28,12 @@ from pathlib import Path
 import pandas as pd
 import geopandas as gpd
 import numpy as np
-import requests
 
 
 avg_life_young_forest = 10  # years
 
-# ----helpers -----
+# ---- helpers ----
+
 def build_direct_mapping(df_nai: pd.DataFrame, nuts_index: pd.Index) -> pd.Series:
     value_col = df_nai.columns[-1]
     colN, colO = df_nai.columns[1], df_nai.columns[2]
@@ -51,6 +52,7 @@ def build_direct_mapping(df_nai: pd.DataFrame, nuts_index: pd.Index) -> pd.Serie
         mapping = mapping.combine_first(s)
     return mapping
 
+
 def fill_from_neighbors(row, neighbors_dict, df_affo):
     if pd.isna(row["value"]):
         vals = df_affo.loc[neighbors_dict.get(row.name, []), "value"].dropna()
@@ -58,31 +60,20 @@ def fill_from_neighbors(row, neighbors_dict, df_affo):
             return vals.mean()
     return row["value"]
 
-def download_file(url: str, dest: Path, chunk_size: int = 1 << 14) -> None:
-    """Download URL to dest with streaming and basic error handling."""
-    with requests.Session() as s:
-        r = s.get(url, stream=True, timeout=60)
-        r.raise_for_status()
-        # Follow redirects handled automatically; still ensure 200 OK
-        with dest.open("wb") as f:
-            for chunk in r.iter_content(chunk_size=chunk_size):
-                if chunk:  # filter out keep-alive chunks
-                    f.write(chunk)
-
 
 def main():
-    PROJECT_ROOT = Path(__file__).resolve().parents[1] if "__file__" in globals() else Path.cwd()
-    CBM_XLS = PROJECT_ROOT / "resources" / "forests" / "Biomass_calculations.xlsx"
-    NUTS2_2013_GEOJSON = PROJECT_ROOT / "data" / "nuts" / "NUTS_RG_03M_2013_4326_LEVL_2.geojson"
-    OUT_CSV = PROJECT_ROOT / "data" / "afforestation_perennials" / "afforestation_nuts2.csv"
-    OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
+    ZENODO_DIR = Path(__file__).resolve().parents[1]
+    PROJECT_ROOT = ZENODO_DIR.parent
 
-    # ---- Pre: Download CBM/JRC Excel from Figshare (downloader endpoint) ----
-    cbm_url = "https://figshare.com/ndownloader/files/43678533"
-    print(f"Downloading CBM/JRC Excel to: {CBM_XLS}")
-    download_file(cbm_url, CBM_XLS)
-    print("CBM file: done.")
+    CBM_XLS = ZENODO_DIR / "data" / "Biomass_calculations.xlsx"
+    NUTS2_2013_GEOJSON = PROJECT_ROOT / "afforestation_perennials" / "data" / "nuts" / "NUTS_RG_03M_2013_4326_LEVL_2.geojson"
+    OUT_CSV = ZENODO_DIR / "data" / "afforestation_nuts2.csv"
 
+    if not CBM_XLS.exists():
+        raise FileNotFoundError(
+            f"CBM Excel not found: {CBM_XLS}\n"
+            "Run download_afforestation_data.py first."
+        )
 
     # 1) Load Excel (M:P) and NUTS2 2013 geometry
     df_nai = pd.read_excel(CBM_XLS, sheet_name="INPUT CBM", usecols="M:P", skiprows=1)
@@ -102,7 +93,6 @@ def main():
         .astype({"Source": "string"})
     df_affo.loc[direct_map.index, "value"] = direct_map.values
     df_affo.loc[direct_map.index, "Source"] = "direct"
-
 
     # 4) Fallback 1: NUTS-1 → NUTS-2 propagation (if data available only at NUTS1)
     colN, colO = df_nai.columns[1], df_nai.columns[2]
@@ -132,22 +122,19 @@ def main():
     df_affo["value"] = df_affo.apply(lambda r: fill_from_neighbors(r, neighbors_dict, df_affo), axis=1)
     df_affo.loc[df_affo["Source"].isna() & df_affo["value"].notna(), "Source"] = "avg nuts2 near"
 
-    # ---- UK-specific fallback (Lack of data for UK and island without direct neighbours) : NUTS1 mean -> nearest within UK ----
-    # we'll need NUTS0 and NUTS1 tags
+    # ---- UK-specific fallback (lack of data for UK and islands without direct neighbours) ----
     df_affo["NUTS0"] = df_affo.index.str[:2]
     df_affo["NUTS1"] = df_affo.index.str[:3]
 
     uk_mask = df_affo["NUTS0"].eq("UK")
     if uk_mask.any():
-        # A) within-UK NUTS1 group mean (e.g., UKM, UKL, UKN, UK[A-K] for English regions)
+        # A) within-UK NUTS1 group mean
         uk = df_affo.loc[uk_mask].copy()
         nuts1_mean = uk.groupby("NUTS1")["value"].mean()
 
         needs_uk = uk["value"].isna()
-        # fill from NUTS1 mean where available
         fill_from_nuts1 = needs_uk & uk["NUTS1"].isin(nuts1_mean.dropna().index)
         df_affo.loc[uk.index[fill_from_nuts1], "value"] = uk.loc[fill_from_nuts1, "NUTS1"].map(nuts1_mean)
-        # tag only rows we just filled
         new_filled_idx = uk.index[fill_from_nuts1 & df_affo.loc[uk.index, "Source"].isna()]
         df_affo.loc[new_filled_idx, "Source"] = "avg UK NUTS1"
 
@@ -158,18 +145,15 @@ def main():
         # B) nearest within-UK (project to meters for distance)
         if needs_uk.any():
             guk = gpd.GeoDataFrame(uk.join(nuts2[["geometry"]]), geometry="geometry", crs=nuts2.crs).to_crs(3035)
-            # centroids
             guk["centroid"] = guk.geometry.centroid
 
             known = guk.loc[~guk["value"].isna(), ["centroid", "value"]]
             unknown = guk.loc[needs_uk, ["centroid"]]
 
             if not known.empty:
-                # brute-force nearest (UK has limited regions; fast enough without SciPy)
                 known_coords = np.vstack([known["centroid"].x.values, known["centroid"].y.values]).T
                 unk_coords = np.vstack([unknown["centroid"].x.values, unknown["centroid"].y.values]).T
 
-                # compute squared distances to avoid sqrt
                 best_idx = []
                 for ux, uy in unk_coords:
                     dx = known_coords[:, 0] - ux
@@ -177,58 +161,42 @@ def main():
                     j = np.argmin(dx * dx + dy * dy)
                     best_idx.append(known.index[j])
 
-                # assign nearest known UK value
                 assign_idx = unknown.index
                 nearest_vals = known.loc[best_idx, "value"].values
                 df_affo.loc[assign_idx, "value"] = nearest_vals
 
-                # tag only where Source still empty
                 tag_mask = df_affo.loc[assign_idx, "Source"].isna()
                 df_affo.loc[assign_idx[tag_mask], "Source"] = "nearest within UK"
 
     # ---- Fallback 3: Country fallback (two-stage): mean of NUTS2 -> Excel national ----
-
-    # Ensure we have NUTS0 on the output index
     df_affo["NUTS0"] = df_affo.index.str[:2]
 
-    # 1) Mean of existing NUTS-2 values by country (might be NaN if a country has no NUTS-2 data)
     nuts2_mean_by_country = df_affo.groupby("NUTS0")["value"].mean()
 
-    # 2) Build national values from Excel (cols N/O -> two-letter codes)
     cbm_nuts0 = pd.Series(dtype=float)
     for c in (colN, colO):
         t = df_nai[[c, value_col]].copy()
         t[c] = t[c].astype(str).str.strip()
         t[value_col] = pd.to_numeric(t[value_col], errors="coerce")
-        t = t[t[c].str.fullmatch(r"^[A-Z]{2}$")]  # country code (e.g., DE, FR, UK)
+        t = t[t[c].str.fullmatch(r"^[A-Z]{2}$")]
         if not t.empty:
             t = t.drop_duplicates(c).set_index(c)[value_col]
             cbm_nuts0 = cbm_nuts0.combine_first(t)
 
-    # Harmonize GB->UK if needed
-    #if "GB" in cbm_nuts0.index and "UK" not in cbm_nuts0.index:
-    #    cbm_nuts0 = cbm_nuts0.rename(index={"GB": "UK"})
-
-    # Combine: prefer NUTS-2 mean; if missing, fall back to Excel national
     country_avg = nuts2_mean_by_country.combine_first(cbm_nuts0)
 
-    # Fill remaining NaNs with the combined country average
     needs = df_affo["value"].isna()
     df_affo.loc[needs, "value"] = df_affo.loc[needs, "NUTS0"].map(country_avg)
 
-    # Label the source accurately
-    # - where NUTS-2 mean existed for that country
     from_nuts2_mean = needs & df_affo["value"].notna() & df_affo["NUTS0"].isin(nuts2_mean_by_country.dropna().index)
     df_affo.loc[from_nuts2_mean & df_affo["Source"].isna(), "Source"] = "avg nuts0 (from NUTS2)"
 
-    # - otherwise it must have come from Excel national
     from_excel_nat = needs & df_affo["value"].notna() & ~df_affo["NUTS0"].isin(nuts2_mean_by_country.dropna().index)
     df_affo.loc[from_excel_nat & df_affo["Source"].isna(), "Source"] = "avg nuts0 (from excel)"
 
     # ---- Special case: copy Crete (EL43) to Malta (MT00) and Cyprus (CY00) ----
     for code in ["EL43", "MT00", "CY00"]:
         if code not in df_affo.index:
-            # silently skip if any of these aren't in the 2013 layer
             break
     else:
         ref_val = df_affo.at["EL43", "value"]
@@ -236,10 +204,8 @@ def main():
             targets = [c for c in ["MT00", "CY00"] if c in df_affo.index]
             if targets:
                 df_affo.loc[targets, "value"] = ref_val
-                # only overwrite Source where it's still empty
                 needs_tag = df_affo.loc[targets, "Source"].isna()
                 df_affo.loc[[t for t, n in zip(targets, needs_tag) if n], "Source"] = "EL43 copy"
-
 
     # Report + save
     left_nan = df_affo["value"].isna().sum()
@@ -248,14 +214,15 @@ def main():
     else:
         print("[ok] No missing NUTS-2 values.")
 
-    out = df_affo.drop(columns=["NUTS0"])
-    out.loc[:,'value'] = out.loc[:,'value'] / avg_life_young_forest
+    out = df_affo.drop(columns=["NUTS0", "NUTS1"])
+    out.loc[:, "value"] = out.loc[:, "value"] / avg_life_young_forest
     out.rename(columns={"value": "affo rate (t/ha/y)"}, inplace=True)
     out.index.name = "NUTS2"
     out.sort_index(inplace=True)
     OUT_CSV.parent.mkdir(parents=True, exist_ok=True)
     out.to_csv(OUT_CSV)
     print(f"[ok] wrote {OUT_CSV}")
+
 
 if __name__ == "__main__":
     main()
