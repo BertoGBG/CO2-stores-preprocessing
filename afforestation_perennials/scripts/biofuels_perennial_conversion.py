@@ -354,7 +354,6 @@ def main():
     OUT_CSV_MINBIOCRP11 = PROJECT_ROOT / 'data' / 'crops' / "yields_MINBIOCRP11_nuts2.csv"
     OUT_CSV_YIELDS_ALL = PROJECT_ROOT / 'data' / 'crops' / "yields_perennials_1G_biofuels.csv"
 
-
     OUT_CSV_perennials.parent.mkdir(parents=True, exist_ok=True)
 
     #################################
