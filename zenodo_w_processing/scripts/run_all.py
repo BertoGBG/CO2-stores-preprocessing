@@ -9,7 +9,7 @@ Steps
 1. download_afforestation_data       → downloads/Biomass_calculations.xlsx
                                        outputs/afforestation/afforestation_nuts_biomass_densities.xlsx
 2. download_eurostat_crops           → downloads/eurostat_apro_cpshr_nuts{0,2}_raw.csv
-3. calculate_afforestation_rates_nuts2          → outputs/afforestation/afforestation_nuts2.csv
+3. calculate_afforestation_rates_nuts2          → outputs/afforestation/afforestation_nuts2_growth_rates.csv
 4. calculate_perennials_1G_biofuels_conversion  → outputs/perennialisation/yields_*.csv
 
 Usage

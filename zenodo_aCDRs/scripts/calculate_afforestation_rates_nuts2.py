@@ -68,7 +68,7 @@ def main():
     CBM_XLS = ROOT_DIR / "downloads" / "Biomass_calculations.xlsx"
     CBM_XLS_FALLBACK = PROJECT_ROOT / "afforestation_perennials" / "resources" / "forests" / "Biomass_calculations.xlsx"
     NUTS2_2013_GEOJSON = PROJECT_ROOT / "afforestation_perennials" / "data" / "nuts" / "NUTS_RG_03M_2013_4326_LEVL_2.geojson"
-    OUT_CSV = ROOT_DIR / "outputs" / "afforestation" / "afforestation_nuts2.csv"
+    OUT_CSV = ROOT_DIR / "outputs" / "afforestation" / "afforestation_nuts2_growth_rates.csv"
 
     if not CBM_XLS.exists() or CBM_XLS.stat().st_size == 0:
         if CBM_XLS_FALLBACK.exists():

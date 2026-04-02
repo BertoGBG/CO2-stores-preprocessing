@@ -42,7 +42,7 @@ Run `scripts/download_afforestation_data.py` to reproduce this file.
   https://ndownloader.figshare.com/files/43678089
   Reference: https://www.nature.com/articles/s41597-023-02868-8
 
-* `outputs/afforestation/afforestation_nuts2.csv`
+* `outputs/afforestation/afforestation_nuts2_growth_rates.csv`
   Afforestation growth rate (t ha⁻¹ y⁻¹) per NUTS2 region, derived from the CBM/JRC
   dataset (`Biomass_calculations.xlsx`). Missing values are filled using a multi-stage
   fallback strategy (NUTS1 propagation → neighbouring regions → country average → nearest
