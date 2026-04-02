@@ -1,5 +1,6 @@
-# Overall Reference:
-https://arxiv.org/abs/2603.25663
+# aCDRs input data for PyPSA-Eur
+
+Reference: https://arxiv.org/abs/2603.25663
 
 ---
 
@@ -11,6 +12,7 @@ downloads/  ← raw input files retrieved from external sources
 outputs/
   afforestation/     ← afforestation results
   perennialisation/  ← Eurostat crop data (input for PyPSA-Eur perennialisation)
+outputs.zip ← all output files bundled for download
 ```
 
 ## Quick start

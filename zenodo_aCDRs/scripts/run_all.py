@@ -2,19 +2,19 @@
 # SPDX-License-Identifier: MIT
 
 """
-Run the full afforestation pipeline: download inputs, then compute outputs.
+Run the full pipeline: download all inputs, then compute all outputs.
 
 Steps
 -----
 1. download_afforestation_data   → downloads/Biomass_calculations.xlsx
                                    outputs/afforestation/afforestation_nuts_biomass_densities.xlsx
-2. download_eurostat_crops       → downloads/eurostat_apro_cpshr_nuts{0,2}_raw.csv
+2. download_eurostat_crops       → outputs/perennialisation/eurostat_apro_cpshr_nuts{0,2}_raw.csv
 3. calculate_afforestation_rates_nuts2  → outputs/afforestation/afforestation_nuts2.csv
 
 Usage
 -----
     python zenodo_aCDRs/scripts/run_all.py   # from repo root
-    python scripts/run_all.py                        # from inside the bundle folder
+    python scripts/run_all.py                # from inside the bundle folder
 """
 
 import sys
