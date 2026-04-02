@@ -37,7 +37,7 @@ def main():
 
     # ---- File 1: Figshare afforestation biomass densities (output dataset) ----
     url_1 = "https://ndownloader.figshare.com/files/43678089"
-    output_1 = ROOT_DIR / "outputs" / "afforestation" / "afforestation_nuts_biomass_densities.xlsx"
+    output_1 = ROOT_DIR / "outputs" / "afforestation_nuts_biomass_densities.xlsx"
     # reference : https://www.nature.com/articles/s41597-023-02868-8
 
     # ---- File 2: CBM/JRC raw input dataset ----

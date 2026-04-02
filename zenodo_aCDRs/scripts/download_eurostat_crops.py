@@ -92,7 +92,7 @@ def download_database_nuts0(filepath: Path) -> None:
 
 def main():
     ROOT_DIR = Path(__file__).resolve().parents[1]
-    output_dir = ROOT_DIR / "outputs" / "perennialisation"
+    output_dir = ROOT_DIR / "outputs"
     download_database_nuts2(output_dir / "eurostat_apro_cpshr_nuts2_raw.csv")
     download_database_nuts0(output_dir / "eurostat_apro_cpshr_nuts0_raw.csv")
     logger.info("Raw downloads complete.")
