@@ -330,11 +330,11 @@ def main():
 
     # ---- save outputs ----
     df_yields_all.to_csv(OUT_CSV_YIELDS_ALL, index=True)
-    yield_MINBIOCRP11_full.to_csv(OUT_CSV_MINBIOCRP11, index=True)
-    yield_MINBIOCRP21_full.to_csv(OUT_CSV_MINBIOCRP21, index=True)
-    yield_MINBIORPS1_full.to_csv(OUT_CSV_MINBIORPS1, index=True)
-    yields_perennials_full.to_csv(OUT_CSV_perennials, index=True)
-    yields_perennials_max_full.to_csv(OUT_CSV_perennials_max, index=True)
+    #yield_MINBIOCRP11_full.to_csv(OUT_CSV_MINBIOCRP11, index=True)
+    #yield_MINBIOCRP21_full.to_csv(OUT_CSV_MINBIOCRP21, index=True)
+    #yield_MINBIORPS1_full.to_csv(OUT_CSV_MINBIORPS1, index=True)
+    #yields_perennials_full.to_csv(OUT_CSV_perennials, index=True)
+    #yields_perennials_max_full.to_csv(OUT_CSV_perennials_max, index=True)
 
     logger.info("Outputs written to %s", OUT_DIR)
 
