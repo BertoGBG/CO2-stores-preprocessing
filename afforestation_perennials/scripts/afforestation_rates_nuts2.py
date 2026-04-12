@@ -7,7 +7,7 @@ Reference: 10.2760/222407
 
 
 UNITS (stored in documentation):
-- Afforestation growth rate: t ha-1 y-1
+- afforestation growth rate: t ha-1 y-1
 
 Mapping logic from CBM dataset:
 

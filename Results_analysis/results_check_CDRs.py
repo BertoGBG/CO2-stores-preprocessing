@@ -240,8 +240,8 @@ dict_bc_avg = {
 ##########################
 # CHECK ERW
 ##########################
-ew_lk = n.links.filter(like = 'EW', axis=0).index
-ew_st = n.stores.filter(like = 'EW', axis=0).index
+ew_lk = n.links.filter(like = 'ERW', axis=0).index
+ew_st = n.stores.filter(like = 'ERW', axis=0).index
 
 # weights based on potential
 p_ew = n.stores.e_nom[ew_st] # NOTE not e_nom_max as in other CDRs
@@ -282,11 +282,11 @@ FROM PYPSA-EUR
 n.add(
     "Link",
     nodes,
-    suffix=" EW",
+    suffix=" ERW",
     bus0=nodes.values,
     bus1="co2 atmosphere",
-    bus2=nodes + " EW co2 store",
-    carrier="EW",
+    bus2=nodes + " ERW co2 store",
+    carrier="ERW",
     capital_cost=costs.at["Enhanced Weathering", "investment"] / costs.at["Enhanced Weathering", "electricity-input"],
     marginal_cost=costs.at["Enhanced Weathering", "VOM"] / costs.at["Enhanced Weathering", "electricity-input"],
     efficiency=-1 / costs.at["Enhanced Weathering", "electricity-input"],

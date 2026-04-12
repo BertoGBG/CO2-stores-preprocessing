@@ -24,7 +24,7 @@ Assumptions for modelling perennials and green biorefining implemented in the co
 5) Green crops (perennials) have a continous effect on reducing GHG, however the harvest of perennials (hence of energy products) is only during the April-Octobe
 
 ### Green biorefining
-Green biorefining (GBR) is a process (moslty based on microfiltraiton) where fresh green biomass are separated into products.
+Green biorefining (GBR) is a process (mostly based on microfiltraiton) where fresh green biomass are separated into products.
 Here only a simplified version of GBR is considered where fresh biomass is separated in protein for monogastric animals, and two energy streams: brown juice and press cake
 Both energy streams are converted to biogas through an anaerobig digestor, maximizing energy production.
 Assumptions for modelling of green biorefining

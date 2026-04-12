@@ -320,13 +320,21 @@ def compute_monthly_rates(weights: pd.DataFrame, rates_csv: Path) -> pd.DataFram
         id_col = rates.columns[0]
 
     # Determine value column
-    if "affo rate (t/ha/y)" in rates.columns:
+    if "CO2 seq rate tCO2/(ha y)" in rates.columns:
+        val_col = "CO2 seq rate tCO2/(ha y)"
+    elif "affo rate (t/ha/y)" in rates.columns:
         val_col = "affo rate (t/ha/y)"
     elif "mai_co2_mean" in rates.columns:
         val_col = "mai_co2_mean"
     else:
-        val_col = rates.columns[-1]
-        print(f"  Warning: guessing value column as '{val_col}'")
+        # last resort: pick first numeric column after the ID column
+        numeric_cols = rates.select_dtypes(include="number").columns.tolist()
+        if numeric_cols:
+            val_col = numeric_cols[0]
+            print(f"  Warning: guessing value column as '{val_col}'")
+        else:
+            print(f"  ERROR: no numeric value column found in {rates_csv}. Skipping.")
+            return None
 
     rates = rates.set_index(id_col)[val_col]
     rates.index.name = "NUTS_ID"

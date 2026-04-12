@@ -189,7 +189,7 @@ rule prepare_sector_network:
         ),
         EW_potentials=lambda w: (
             resources("EW_potentials_s_{clusters}.csv")
-            if config_provider("sector", "EW")(w)
+            if config_provider("sector", "ERW")(w)
             else []
         ),
         afforestation_potentials=lambda w: (

@@ -373,7 +373,7 @@ def expand_to_all_nuts2(agg: pd.DataFrame, geojson_path: Path) -> pd.DataFrame:
     else:
         print(f"[ok] All {len(rates)} NUTS2 regions covered.")
 
-    out = pd.DataFrame({"affo rate (t/ha/y)": rates, "Source": source})
+    out = pd.DataFrame({"CO2 seq rate tCO2/(ha y)": rates, "Source": source})
     out.index.name = "NUTS2"
     return out
 
