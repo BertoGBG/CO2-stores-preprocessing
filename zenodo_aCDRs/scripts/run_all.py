@@ -6,35 +6,58 @@ Run the full pipeline: download all inputs, then compute all outputs.
 
 Steps
 -----
-1. download_afforestation_data   → downloads/Biomass_calculations.xlsx
-                                   outputs/afforestation/afforestation_nuts_biomass_densities.xlsx
-2. download_eurostat_crops       → outputs/perennialisation/eurostat_apro_cpshr_nuts{0,2}_raw.csv
-3. calculate_afforestation_rates_nuts2  → outputs/afforestation/afforestation_nuts2_growth_rates.csv
+Afforestation – Method 1 (Avitabile / Figshare):
+  1. download_afforestation_data_avitabile  → outputs/afforestation/afforestation_nuts_biomass_densities.xlsx
+
+Afforestation – Method 2 (Pilli + FluxCom):
+  2. download_zenodo_pilli_afforestation    → data/zenodo_Pilli/
+  3. download_fluxcom                       → data/fluxcom_raw/
+  4. 01_compute_afforestation_rates_pilli   → outputs/afforestation/afforestation_rates_nuts2_full.csv
+  5. 02_compute_nuts2_profiles              → outputs/afforestation/nuts2_monthly_weights.csv
+                                               outputs/afforestation/nuts2_monthly_rates.csv
+  6. 03_plot_check                          → outputs/afforestation/fig_*.png  (optional diagnostics)
+
+Perennialisation:
+  7. download_eurostat_crops                → outputs/perennialisation/eurostat_apro_cpshr_nuts{0,2}_raw.csv
 
 Usage
 -----
-    python zenodo_aCDRs/scripts/run_all.py   # from repo root
-    python scripts/run_all.py                # from inside the bundle folder
+    python scripts/run_all.py   # from inside the bundle folder
 """
 
+import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+SCRIPTS = Path(__file__).resolve().parent
 
-from download_afforestation_data import main as download_afforestation
-from download_eurostat_crops import main as download_eurostat
-from calculate_afforestation_rates_nuts2 import main as calc_afforestation
-
+STEPS = [
+    # (label, script_path)
+    ("1/7 – download Avitabile/Figshare afforestation data",
+     SCRIPTS / "afforestation" / "download_afforestation_data_avitabile.py"),
+    ("2/7 – download Pilli et al. JRC forest growth library",
+     SCRIPTS / "afforestation" / "download_zenodo_pilli_afforestation.py"),
+    ("3/7 – download FluxCom GPP data (2010–2012, ~3.6 GB)",
+     SCRIPTS / "afforestation" / "download_fluxcom.py"),
+    ("4/7 – compute rotation-averaged MAI per NUTS-2 (Pilli method)",
+     SCRIPTS / "afforestation" / "01_compute_afforestation_rates_pilli.py"),
+    ("5/7 – compute monthly GPP seasonal profiles per NUTS-2",
+     SCRIPTS / "afforestation" / "02_compute_nuts2_profiles.py"),
+    ("6/7 – generate diagnostic plots",
+     SCRIPTS / "afforestation" / "03_plot_check.py"),
+    ("7/7 – download Eurostat crop harvest data",
+     SCRIPTS / "perennialisation" / "download_eurostat_crops.py"),
+]
 
 if __name__ == "__main__":
-    print("=== Step 1/3: downloading afforestation data ===")
-    download_afforestation()
-
-    print("\n=== Step 2/3: downloading Eurostat crop data ===")
-    download_eurostat()
-
-    print("\n=== Step 3/3: calculating afforestation rates ===")
-    calc_afforestation()
+    for label, script in STEPS:
+        print(f"\n=== Step {label} ===")
+        result = subprocess.run(
+            [sys.executable, str(script)],
+            cwd=SCRIPTS.parent,  # run from the bundle root
+        )
+        if result.returncode != 0:
+            print(f"\nERROR: step '{label}' failed (exit code {result.returncode}).")
+            sys.exit(result.returncode)
 
     print("\nAll steps completed successfully.")

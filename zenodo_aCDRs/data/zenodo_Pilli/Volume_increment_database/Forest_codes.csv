@@ -1,0 +1,223 @@
+﻿Country,Forest type,Leading species according to NFI/country data,Species group
+AT,AA,Tanne (A. alba),con
+AT,FS,Buche (F. sylvatica),broad
+AT,LD,Larch (L. decidua),con
+AT,OC,Sonstiges Nadelholz (other conifers),con
+AT,OH,"Sonstiges Hartlaub (hardwood broadl. i.e Fraxinus, Acer)",broad
+AT,OH,Broadleaves  hardwoods,broad
+AT,OS,"Weichlaub (other broadl. i.e Betula, Populus, Alnus)",broad
+AT,PA,Fichte (P. abies),con
+AT,PC,Zirbe (P. cembra),con
+AT,PN,Schwarzkiefer (P. nigra),con
+AT,PS,Weisskiefer (P. sylvestris),con
+AT,QR,Eiche (Quercus sp.),broad
+BE,DF,Douglas fir,con
+BE,FS,Beech,broad
+BE,FS_QR,Mixed stands with Beech and Oaks ,broad
+BE,LD,Larch,con
+BE,OB,Other broadleaves,broad
+BE,OB-N,"Noble broadleaves (Ash, etc.)",broad
+BE,OC,Other conifers,con
+BE,PA,Spruce,con
+BE,PD,Mixed stands with Spuce and Douglas fir,con
+BE,PP,Poplar plantations,broad
+BE,PS,Pine ,con
+BE,QR,Oaks,broad
+BG,AA,Silver fir,con
+BG,FO,"Ash, Linden",broad
+BG,FS,Beech,broad
+BG,FS,Beech,broad
+BG,OB,"Common hornbeam, Elm, Poplar, Aspen, Maple, Birch, Chestnut, Walnut, other broadleaves",broad
+BG,OB (for coppices),"Common hornbeam, Oriental hombeam, other broadleaves",broad
+BG,OC,"Douglas fir, European larch, other conifers",con
+BG,PA,Norway spruce,con
+BG,PN,Black pine,con
+BG,PN,Macedonian pine & Heldreichii pine,con
+BG,PS,Scots pine,con
+BG,QC,Turkey oak,broad
+BG,QR,Oak,broad
+CZ,FS,Beech,broad
+CZ,PA,Spruce,con
+CZ,PS,Pine,con
+CZ,QR,Oaks,broad
+DE,DF,Douglas fir,con
+DE,FS,Beech,broad
+DE,LD,Larch,con
+DE,OL,Other deciduous trees with long time expectancy,broad
+DE,OS,Other deciduous trees with short time expectancy,broad
+DE,PA,Spruce,con
+DE,PS,Pine,con
+DE,QR,Oaks,broad
+DK,AA,"Nordman fir, Noble fir",con
+DK,FS,Beech,broad
+DK,OB,"Other broadleaves (Including Ash, Sycamore maple, Birch and all other broadleaves)",broad
+DK,OC,Other conifers,con
+DK,PA,"Norway spuce, Sitka spruce",con
+DK,PS,Pine sp.,con
+DK,QR,Oak,broad
+EE,AG,Black alder,broad
+EE,AI,Grey alder,broad
+EE,BT,Birch,broad
+EE,OB,Other broadleaves,broad
+EE,PA,Spruce,con
+EE,PS,Pine,con
+EE,PT,Aspen,broad
+ES,FS,Fagus sylvatica,broad
+ES,OB,Other broadleaves,broad
+ES,OC,Other Conifers,con
+ES,PH,Pinus halepensis,con
+ES,PR,Pinus radiata,con
+ES,PS,Pinus sylvestris,con
+ES,QI,Quercus ilex,broad
+ES,QP,Quercus pyrenaica,broad
+FI,OB,Birch & other broadl.,broad
+FI,PA,Spruce,con
+FI,PS,Pine & other conifers,con
+FR,AA,Abies alba,con
+FR,CB,Carpinus betulus,broad
+FR,CS,Castanea sativa,broad
+FR,DF,Pseudotsuga menziesii,con
+FR,FE,Fraxinus excelsior,broad
+FR,FS,Fagus sylvatica,broad
+FR,OB,Other broadleaves,broad
+FR,OC,Other Conifers,con
+FR,PA,Picea abies,con
+FR,PM,Pinus pinaster,con
+FR,PS,Pinus sylvestris,con
+FR,QP,Quercus pubescens,broad
+FR,QR,Quercus robur,broad
+FR,QT,Quercus petraea,broad
+GR,AA,Abies sp.,con
+GR,CS,Castanea sativa,broad
+GR,FS,Fagus sp.,broad
+GR,OB,Other deciduous,broad
+GR,PA,Picea abies,con
+GR,PN,Pinus sp .,con
+GR,PO,Populus sp.,broad
+GR,QI,Quercus sp.,broad
+HR,CB,Hornbeam forests,broad
+HR,FS,Beech forests,broad
+HR,MB,Mixed forests with prevalence of broadleaves,broad
+HR,MC,Mixed forests with prevalence of conifers,con
+HR,OB,Other broadleaves,broad
+HR,OC,Other conifers,con
+HR,QP,Quercus petrea,broad
+HR,QR,Quercus robur,broad
+HU,FS,Fagus sylvatica,broad
+HU,OH,"Other broadleaves hardwoods (Carpinus betulus, Acer sp., Ulmus sp., Fraxinus sp.)",broad
+HU,OS,"Other broadleaves softwoods (Alnus sp., Tilia sp.)",broad
+HU,PA,Picea abies and other conifers,con
+HU,PS,"Pinus silvestris, Pinus nigra and Larix deciduas ",con
+HU,PT,"Poplar spp., Salix spp.",broad
+HU,QR,Quercus spp.,broad
+HU,RP,Robinia pseudacacia,broad
+IE,AG,Alnus glutinosa,broad
+IE,FS,Fagus sp.,broad
+IE,OB,"Acer pseudoplatanus, Betula sp., Fraxinus excelsior, Quercus sp., other broad.",broad
+IE,OC,"Larix spp., Pseudotsuga menziesii, other con.",con
+IE,OC,Pseudotsuga menziesii,con
+IE,PA,"Picea sitchensis, Picea abies",con
+IE,PS,"Pinus sylestris, other pines",con
+IT,AA,Silver fir,con
+IT,BP,Broadleaves plantations,broad
+IT,CP,Conifers plantations,broad
+IT,CS,Chestnut,broad
+IT,FS,Beech,broad
+IT,LD,Larch & mountain pines,con
+IT,OB,Other broadleaves,broad
+IT,OC,Other conifers,con
+IT,Oca,Hornbeam,broad
+IT,OE,Other evergreen,broad
+IT,PA,Norway spruce,con
+IT,PM,Mediterranean pines,con
+IT,PN,Black pine,con
+IT,PP,Poplar,broad
+IT,PS,Scots pine,con
+IT,QC,Turkey oak,broad
+IT,QI,Evergreen oak,broad
+IT,QR,Common oak,broad
+IT,QS,Cork oak,broad
+IT,RF,Riparian forests,broad
+LT,AG,Black alder,broad
+LT,AI,Grey alder,broad
+LT,BT,Birch,broad
+LT,OB,"Ash, other broadleaves",broad
+LT,PA,Spruce,con
+LT,PS,Pine,con
+LT,PT,Aspen,broad
+LT,QR,Oak,broad
+LU,DF,Douglasia,con
+LU,FS,Beech,broad
+LU,OB,Other broadleaves,broad
+LU,OC,Other conifers,con
+LU,PA,Picea,con
+LU,QR,Oaks,broad
+LV,AG,Black alder,broad
+LV,AI,Grey alder,broad
+LV,BT,Birch,broad
+LV,OB,"Ash, other broadleaves",broad
+LV,PA,Spruce,con
+LV,PS,Pine,con
+LV,PT,Aspen,broad
+LV,QR,Oak,broad
+NL,BT,Betula pubescens + Betula pendula,broad
+NL,DF,Pseudotsuga menziessii,con
+NL,FS,Fagus sylvatica,broad
+NL,LD,Larix sp,con
+NL,OB,Other broadleaved,broad
+NL,OC,Other coniferous,con
+NL,OP,Other Pinus,con
+NL,PA,Picea sp,con
+NL,PN,Pinus nigra,con
+NL,PP,Populus sp + Salix sp,broad
+NL,PS,Pinus sylvestris,con
+NL,QP,Quercus petrea + Quercus robur,broad
+NL,QR,Quercus rubra,broad
+PL,AG,Alder,broad
+PL,BT,Birch,broad
+PL,FS,Beech,broad
+PL,OB,Other broadleaves,broad
+PL,OC,Other Conifers,con
+PL,PA,Spruce,con
+PL,PS,Pine,con
+PL,QR,Oak,broad
+PT,CS,Castanea sativa,broad
+PT,EP,Eucalyptus sp.,broad
+PT,OB,Other broadleaves,broad
+PT,OC,Other conifers,con
+PT,PM,Pinus pinaster,con
+PT,PP,Pinus pinea,con
+PT,QI,Quercus ilex,broad
+PT,QR,Quercus sp.,broad
+PT,QS,Quercus suber,broad
+PT,RP,Robinia sp,broad
+PT,SI,Ceratonia siliqua,broad
+RO,AA,Fir,con
+RO,ConBroad,Mixed forests,con
+RO,FS,Beech,broad
+RO,OB,Other broadleaves,broad
+RO,OC,Other conifers,con
+RO,PA,Spruce,con
+RO,PredBroad,Mixed forests with prevalence of broadleaves,broad
+RO,PredCon,Mixed forests with prevalence of conifers,con
+RO,QR,Oaks,broad
+RO,RP,Robinia sp.,broad
+SE,BT,Birch,broad
+SE,OB,Mixed forests and other broadleaves,broad
+SE,PA,Spruce,con
+SE,PS,Lodgepole pine and other pines,con
+SI,FS,All beech forests,broad
+SI,MFb,Mixed forest with prevalence of broadleaves,broad
+SI,MFc,Mixed forest with prevalence of broadleaves,broad
+SI,OB,Thermophilous forests,broad
+SI,PA,Nemoral spruce forest,con
+SI,QPb,Oak and pine forest with prevalence of broadleaves,broad
+SI,QPc,Oak and pine forest with prevalence of conifers,broad
+SI,QR,Oak and riparian forest,broad
+SK,AA,Abies alba,con
+SK,FS,Fagus sylvatica,broad
+SK,OB,Other broadleaves,broad
+SK,OC,Other conifers,con
+SK,PA,Picea abies,con
+SK,PS,Pinus sylvestris,con
+SK,QR,Quercus sp.,broad
