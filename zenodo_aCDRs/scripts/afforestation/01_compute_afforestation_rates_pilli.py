@@ -458,26 +458,64 @@ def compute_rates():
             "mai_vol_m3_ha_yr", "bcef", "mai_co2_tCO2_ha_yr"]
     print(results_df[cols].head(20).to_string(index=False))
 
-    # ── Aggregate to NUTS-2: equal-weight average across forest types ────────
-    # For regions with "NUTS0" (country-level data), use country code
-    agg = (
+    # ── Aggregate to NUTS-2: two-step 50/50 con/broad average ───────────────
+    # Step 1: equal-weight mean within each species group (con, broad)
+    # Step 2: arithmetic mean of the two group means (50/50 con/broad blend)
+    #
+    # Rationale: European silvicultural guidelines and the EU Biodiversity
+    # Strategy 2030 promote mixed-species afforestation. A 50/50 con/broad
+    # split represents a balanced, biodiversity-compatible planting strategy
+    # and satisfies the minimum ~30% broadleaf criterion found in most EU
+    # member-state forest laws. Within each group, equal weighting across
+    # species types is used as an approximation in the absence of NFI-derived
+    # species-area data at NUTS-2 resolution.
+    #
+    # Fallback: if only one species group has data in a region (e.g. Portugal
+    # has no broadleaf types in Pilli), the available group mean is used directly.
+
+    def aggregate_two_step(grp):
+        """50/50 con/broad blend; falls back to single-group mean if needed."""
+        con_mean   = grp.loc[grp["con_broad"] == "con",   "mai_co2_tCO2_ha_yr"].mean()
+        broad_mean = grp.loc[grp["con_broad"] == "broad", "mai_co2_tCO2_ha_yr"].mean()
+        has_con   = not np.isnan(con_mean)
+        has_broad = not np.isnan(broad_mean)
+        if has_con and has_broad:
+            return 0.5 * con_mean + 0.5 * broad_mean
+        elif has_con:
+            return con_mean    # only conifers present
+        else:
+            return broad_mean  # only broadleaves present
+
+    agg_base = (
         results_df
         .groupby(["country", "nuts2"])
         .agg(
-            mai_co2_mean=("mai_co2_tCO2_ha_yr", "mean"),
             mai_co2_min=("mai_co2_tCO2_ha_yr", "min"),
             mai_co2_max=("mai_co2_tCO2_ha_yr", "max"),
             n_forest_types=("forest_type", "nunique"),
+            n_con=("con_broad",  lambda x: (x == "con").sum()),
+            n_broad=("con_broad", lambda x: (x == "broad").sum()),
             rotation_age_mean=("rotation_age", "mean"),
             mai_vol_mean=("mai_vol_m3_ha_yr", "mean"),
         )
         .reset_index()
     )
 
+    mai_means = (
+        results_df
+        .groupby(["country", "nuts2"])
+        .apply(aggregate_two_step, include_groups=False)
+        .rename("mai_co2_mean")
+        .reset_index()
+    )
+
+    agg = agg_base.merge(mai_means, on=["country", "nuts2"])
+
     print("\n" + "=" * 70)
-    print("  NUTS-2 AGGREGATED RATES  [tCO₂/ha/yr]")
+    print("  NUTS-2 AGGREGATED RATES  [tCO₂/ha/yr]  (two-step 50/50 con/broad)")
     print("=" * 70)
-    print(agg.to_string(index=False))
+    print(agg[["country", "nuts2", "n_con", "n_broad", "mai_co2_min",
+               "mai_co2_max", "mai_co2_mean"]].to_string(index=False))
 
     # ── Overall statistics ───────────────────────────────────────────────────
     print("\n" + "=" * 70)

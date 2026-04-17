@@ -76,7 +76,7 @@
 Afforestation was first introduced in PyPSA-eur in \cite{Fernandes2026} as a spatially resolved carbon dioxide removal (CDR) technology. The implementation requires two inputs per network node: (i)~the
 available land area from CORINE land cover, (ii)~a CO$_2$ sequestration rate
 in \si{tCO_2 / (ha a)}. Here is introduced a more accurate approach to the calculation of the CO2 sequestration rates, which ensure consistency with EU LULUCF legislation, and provides a sub-annual temporal profile distributing the uptake across calendar months. This section describes
-the derivation of both CO" sequestration rates and temporal profiles from publicly available European forest inventory and remote-sensing data.
+the derivation of both CO$_2$ sequestration rates and temporal profiles from publicly available European forest inventory and remote-sensing data.
 
 % =============================================================================
 \subsubsection{Annual Sequestration Rate: Pilli et al.\ Yield Table Library}
@@ -113,7 +113,7 @@ it: (i)~provides region- and species-specific growth trajectories calibrated
 against national forest inventories; (ii)~is consistent with the carbon
 accounting methodology used in the EU Carbon Budget Model (EU-CBM-HAT,
 \citealt{Grassi2018}); and (iii)~yields a single rotation-averaged rate that
-is directly applicable as a long-run average CDR potential, which is arguably the parameter required for modeling of the energy system. We applied the method only to productive forests assuming that new afforestation or reforestation project will fall within the categories: management types “H”, “HP”, “HS”, and “MAN”, while  coppice, non-productive, and protected forests are excluded. The original method in \cite{Fernandes2026} derived the CO2 sequestration rates from the standing above-ground biomass density (tDM / ha) of all forests, assuming a single Europe-wide averaged parameter as a single duration peak-growth-phase of forests.
+is directly applicable as a long-run average CDR potential, which is arguably the parameter required for modeling of the energy system. We applied the method only to productive forests assuming that new afforestation or reforestation project will fall within the categories: management types ``H'', ``HP'', ``HS'', and ``MAN'', while  coppice, non-productive, and protected forests are excluded. The original method in \cite{Fernandes2026} derived the CO2 sequestration rates from the standing above-ground biomass density (tDM / ha) of all forests, assuming a single Europe-wide averaged parameter as a single duration peak-growth-phase of forests.
 
 % =============================================================================
 \subsubsection{Rotation-Averaged Sequestration Rate}
@@ -169,17 +169,49 @@ root-to-shoot ratio accounting for belowground biomass
 \citep{IPCC2006, Mokany2006}.
 
 \paragraph{Step 4: Regional aggregation.}
-For each NUTS-2 region, the sequestration rate is computed as the
-equal-weight average across all productive forest types present in that
-region:
+For each NUTS-2 region, the sequestration rate is computed using a two-step
+procedure that reflects both the IPCC methodology for afforestation accounting
+and European biodiversity guidelines for mixed-species plantings.
+
+In the first step, an equal-weight average of the rotation-averaged MAI is
+computed separately for coniferous and broadleaved species groups:
 \begin{equation}
-    \overline{\text{MAI}}_{\text{CO}_2, r}
-    = \frac{1}{|F_r|} \sum_{f \in F_r} \text{MAI}_{\text{CO}_2, f, r}
-    \label{eq:nuts2_agg}
+    \overline{\text{MAI}}^{g}_{\text{CO}_2, r}
+    = \frac{1}{|F^{g}_r|} \sum_{f \in F^{g}_r} \text{MAI}_{\text{CO}_2, f, r}
+    \qquad g \in \{\text{con},\, \text{broad}\}
+    \label{eq:nuts2_group}
 \end{equation}
-where $F_r$ is the set of forest types with data in region~$r$.
+where $F^{g}_r$ is the set of productive forest types of group $g$ present in
+region~$r$.
 Only even-aged, productive high-forest stands are included (management types
 ``H'', ``HP'', ``HS'', and ``MAN'').
+
+In the second step, the two group means are blended with equal weight,
+representing a 50\,\% coniferous / 50\,\% broadleaved planting mix:
+\begin{equation}
+    \overline{\text{MAI}}_{\text{CO}_2, r}
+    = \frac{1}{2}\,\overline{\text{MAI}}^{\text{con}}_{\text{CO}_2, r}
+    + \frac{1}{2}\,\overline{\text{MAI}}^{\text{broad}}_{\text{CO}_2, r}
+    \label{eq:nuts2_agg}
+\end{equation}
+If only one species group has data in a region, that group's mean is used
+directly.
+
+The 50/50 con/broad split is grounded in European silvicultural practice.
+The EU Biodiversity Strategy 2030 requires that new forests meet strict
+biodiversity criteria and promotes diverse, mixed-species stands
+\citep{EC2020BiodiversityStrategy}.
+Most EU member-state forest laws mandate a minimum broadleaved fraction of
+20--30\,\% in new plantings (e.g.\ Germany's \emph{Bundeswaldgesetz});
+a 50/50 split satisfies this threshold with margin and represents a
+conservative, biodiversity-compatible assumption.
+The approach is consistent with the \citet{IPCC2006} Good Practice Guidance
+for afforestation and reforestation, which prescribes the rotation-averaged
+MAI as the basis for estimating long-run mean annual carbon accumulation of
+a newly established stand.
+Within each species group, equal weighting across forest types is used as an
+approximation in the absence of NFI-derived species-area data at NUTS-2
+resolution.
 
 % =============================================================================
 \subsubsection{Spatial Coverage: Mapping to All NUTS-2 Regions}
@@ -346,74 +378,95 @@ PyPSA-Eur as the time-varying efficiency of the afforestation CDR component.
 \subsubsection{Consistency with EU Policy Frameworks}
 \label{sec:affo_policy}
 
-The rotation-averaged MAI is consistent with the accounting rules of the
-EU Land Use, Land-Use Change and Forestry (LULUCF) Regulation
-\citep{EU2018841, EU2023839}, which requires gross-net accounting of
-emissions and removals on afforested land during a 20--30~year transition
-period. The use of rotation-averaged (rather than peak-phase) rates avoids
-overestimating the CDR potential and is compatible with the monitoring
-requirements of the EU Carbon Removal Certification Framework (CRCF)
-\citep{EU20243012}.
+The rotation-averaged MAI is consistent with the EU LULUCF Regulation
+\citep{EU2018841, EU2023839}, which requires gross-net accounting of removals
+on afforested land over a 20--30~year transition period.
+
+\paragraph{CRCF accounting.}
+Regulation~(EU)~2024/3012 \citep{EU20243012} established the EU Carbon
+Removal Certification Framework; the afforestation methodology was issued as
+a draft delegated act on 22~January~2026. Three points are relevant here.
+
+\textit{(i) Activity period:} 30~years (no renewal), followed by 40~years of
+monitoring --- consistent with the PyPSA-Eur technology lifetime.
+
+\textit{(ii) Harvest is permitted} provided trees are replanted and no net
+stock reduction occurs (§1.1.3.2(h)(i)); a net decrease triggers a
+\emph{reversal} and credit invalidation. The MAI concept is therefore
+appropriate: it already represents the long-run average annual stock increase
+of a managed stand that includes the harvest--replant cycle.
+
+\textit{(iii) Discounts.} Credits equal the net stock increase times
+$(1-\mathrm{UNC})$, where UNC is a mandatory uncertainty deduction (min.\
+10\%). Operators also contribute a risk-rate share to a buffer pool after
+each audit; these units expire at end of monitoring (permanent discount).
+Risk rates from Table~7 of the draft are 8--17\,\% for broadleaf/mixed
+forests at low-to-medium disturbance. The net fraction of gross MAI that
+becomes usable credits is:
+\begin{equation}
+  \eta_\text{CRCF} = (1 - \text{UNC})(1 - r_\text{risk})
+  \label{eq:crcf_efficiency}
+\end{equation}
+giving $\eta_\text{CRCF}\approx0.75$--$0.83$ for typical European conditions.
+The remaining gross stock decomposes exactly as net certified stock
+($\eta_\text{CRCF}$), buffer reserve ($(1-\mathrm{UNC})\,r$), and a
+harvest/safety margin (UNC) --- carbon never credited and therefore
+extractable without reversal; the three sum to unity by construction.
+In PyPSA-Eur, $\eta_\text{CRCF}$ is the \texttt{Link} \texttt{efficiency},
+set via \texttt{afforestation[crcf\_efficiency]} (default~0.80).
+Figure~\ref{fig:mai_crcf} illustrates all three components.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{figures/mai_crcf_explained.pdf}
+  \caption{%
+    \textbf{Forest growth dynamics, certified stock, and CRCF credit breakdown.}
+    \textit{(a)} CAI (blue) and MAI (dashed orange) for a representative
+    European managed forest ($T_\text{rot}\approx80$\,yr,
+    MAI$_\text{max}\approx5.2$\,tCO$_2$ ha$^{-1}$ yr$^{-1}$;
+    EU median from \citealt{Pilli2024Zenodo}); dashed line: 30-yr CRCF
+    activity period.
+    \textit{(b)} Gross cumulative stock decomposed into net certified stock
+    (green), buffer-pool reserve (orange), and harvest/safety margin (red,
+    = UNC fraction, extractable without triggering reversal).
+    Central estimate: $\eta_\text{CRCF}=0.80$, UNC$=10\,\%$, $r=11\,\%$.
+    \textit{(c)} Same fractions for three disturbance scenarios
+    (Table~7, draft delegated act, 22~Jan.~2026).}
+  \label{fig:mai_crcf}
+\end{figure}
 
 % =============================================================================
-\subsubsection{Note on the integration in PyPSA-Eur}
+\subsubsection{PyPSA-Eur implementation}
 \label{sec:affo_pypsa}
 
-Afforestation is represented as a \texttt{Store} component on a dedicated
-CO$_2$ bus at each network node, connected to the \texttt{co2 atmosphere}
-bus via a \texttt{Link}. The maximum storage capacity (\texttt{e\_nom\_max})
-is determined by the available CORINE land area, the annual sequestration rate,
-and a configurable maximum land-usage fraction. The capital cost is computed
-from establishment and maintenance costs, annualised over a configurable
-lifetime (default \SI{30}{yr}, consistent with the LULUCF transition period).
-The monthly weights derived in Section~\ref{sec:affo_temporal} enter as a
-time-varying profile on the \texttt{Link} component, so that the model
-correctly represents the seasonally uneven pattern of carbon uptake when
-optimising storage dispatch. In the current implementation of PyPSA-Eur
-(\url{https://github.com/BertoGBG/pypsa-eur/tree/a_CDRs}) both methods for
-afforestation are available via the configuration key
-\texttt{afforestation[potential\_type]}, where \texttt{"density"} corresponds
-to the method of \citet{Fernandes2026} and \texttt{"growth"} to the method
-described here.
+Each network node has a \texttt{Store} on a dedicated \texttt{co2 afforestation}
+bus, linked to \texttt{co2 atmosphere} via an extendable \texttt{Link}.
+Storage capacity (\texttt{e\_nom\_max}) is set by the CORINE land area and
+annual sequestration rate; capital cost is annualised over a 30-year lifetime.
+The \texttt{Link} \texttt{efficiency} equals $\eta_\text{CRCF}$
+(Eq.~\ref{eq:crcf_efficiency}), so only the certified fraction of gross
+sequestration reaches the storage bus. Both methods are available via
+\texttt{afforestation[potential\_type]} (\texttt{``density''}: \citealt{Fernandes2026};
+\texttt{``growth''}: this work; see \url{https://github.com/BertoGBG/pypsa-eur/tree/a_CDRs}).
 
-\paragraph{Time-varying dispatch profile.}
-In the growth mode, the \texttt{Link} is forced to follow the seasonal
-sequestration profile exactly by setting both \texttt{p\_min\_pu}$(t)$ and
-\texttt{p\_max\_pu}$(t)$ to the same time-varying value, leaving the optimiser
-only the freedom to choose the link capacity $p_\text{nom}$
-(in \si{tCO_2\,h^{-1}}):
+\paragraph{Seasonal dispatch profile.}
+In growth mode, \texttt{p\_min\_pu}$(t) =$ \texttt{p\_max\_pu}$(t)$ forces
+the \texttt{Link} to follow the GPP-derived seasonal profile exactly,
+leaving the optimiser only the capacity $p_\text{nom}$ to choose:
 \begin{equation}
-    \bar{p}_{r}(t)
-    \;=\; p_{\min,r}(t)
-    \;=\; p_{\max,r}(t)
-    \;=\; w_{m(t),\,r}
-          \cdot \frac{T_\text{year}}{H_{m(t)}}
+    p_{\min,r}(t) = p_{\max,r}(t)
+    = w_{m(t),\,r} \cdot \frac{T_\text{year}}{H_{m(t)}}
     \label{eq:ppu}
 \end{equation}
 where $w_{m,r}$ is the normalised GPP weight for node~$r$ in month~$m$
-(Eq.~\ref{eq:gpp_weights}), $T_\text{year}$ is the total number of hours
-in the model snapshot set (e.g.\ $8760$ for a full year), and $H_{m}$ is
-the number of snapshot hours belonging to month~$m$.
-The scaling factor $T_\text{year}/H_{m}$ ensures that the annual carbon
-budget is preserved regardless of month length:
-\begin{equation}
-    \sum_{t=1}^{T_\text{year}} p_\text{nom} \cdot \bar{p}_{r}(t)
-    \;=\; p_\text{nom}
-          \sum_{m=1}^{12} w_{m,r}
-          \cdot \frac{T_\text{year}}{H_{m}} \cdot H_{m}
-    \;=\; p_\text{nom} \cdot T_\text{year}
-    \label{eq:annual_budget}
-\end{equation}
-since $\sum_{m=1}^{12} w_{m,r} = 1$ by construction, this is equivalent to
-prescribing fixed monthly sequestration budgets proportional to $w_{m,r}$,
-with a uniform dispatch rate within each calendar month.
-The \texttt{Store}'s maximum energy (\texttt{e\_nom\_max}) is set to the
-annual sequestration potential $\Pi_r$
-[\si{tCO_2\,yr^{-1}}], which implicitly constrains the link capacity:
-$p_\text{nom} \leq \Pi_r / T_\text{year}$.
-The optimiser therefore selects the fraction of available afforestation
-land to deploy at each node, while the seasonal shape of sequestration
-is fixed by the GPP-derived profile.
+(Eq.~\ref{eq:gpp_weights}) and $H_m$ is the number of snapshot hours in
+month~$m$. The factor $T_\text{year}/H_m$ preserves the annual budget:
+$\sum_t p_\text{nom}\,\bar{p}_r(t) = p_\text{nom}\,T_\text{year}$,
+equivalent to fixed monthly budgets proportional to $w_{m,r}$.
+The \texttt{Store} \texttt{e\_nom\_max}~$= \Pi_r$ (tCO$_2$ yr$^{-1}$)
+implicitly caps the link: $p_\text{nom} \leq \Pi_r/T_\text{year}$.
+The optimiser therefore chooses the fraction of land to deploy; the
+seasonal shape is fixed by the profile.
 
 % =============================================================================
 \subsubsection{Results and Validation}

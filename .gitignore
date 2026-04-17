@@ -1,6 +1,7 @@
 Results_analysis/
 .DS_Store
 .idea/
+/Results_analysis/results_aCDRs_RM
 
 # Large FluxCom NetCDF files — upload directly to Zenodo
 zenodo_aCDRs/data/fluxcom_raw/
