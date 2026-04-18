@@ -4,11 +4,12 @@ No CLC area calculations involved (those are identical for both methods).
 
 Growth method:
   - Annual rate:   afforestation_rates_nuts2_full.csv  [tCO2/ha/yr]
-  - Monthly rate:  annual_rate × monthly_weight  (from nuts2_monthly_weights.csv)
+  - Monthly rate:  annual_rate × monthly_weight  (from afforestation_nuts2_monthly_weights.csv)
 
-Density method:
-  - Annual rate:   Avitabile AGB / lifetime × co2_per_tonne × max_land_usage  [tCO2/ha/yr]
-                   Cascade (same steps as growth): NUTS2 → NUTS1 → NUTS0 → neighbours → country mean
+Density method (matches build_afforestation_potentials.py in pypsa-eur):
+  - Annual rate:   Avitabile AGB (NUTS0 country-level only) / lifetime × co2_per_tonne
+                   Countries absent from Avitabile → hardcoded fallback 117 t_DM/ha
+                   No sub-national cascade applied. f_land excluded for comparison.
   - Monthly rate:  annual_rate / 12  (uniform — no seasonal variation)
 
 Western Balkans (RS/AL/BA/XK): not in Eurostat NUTS2 GeoJSON.
@@ -17,7 +18,7 @@ Western Balkans (RS/AL/BA/XK): not in Eurostat NUTS2 GeoJSON.
 
 Outputs:
   fig_method_comparison_maps.png       — 3 maps: growth | density | difference
-  fig_method_comparison_seasonal.png   — seasonal profiles + NUTS2 scatter
+  fig_method_comparison_seasonal.png   — 2×2 seasonal profiles by macro-region
 """
 
 from pathlib import Path
@@ -58,7 +59,7 @@ BASE    = Path("/Users/albal/Library/CloudStorage/OneDrive-DanmarksTekniskeUnive
 OUT_DIR = Path(__file__).parent
 
 GROWTH_RATES_CSV = BASE / "outputs/afforestation/afforestation_rates_nuts2_full.csv"
-GROWTH_WGTS_CSV  = BASE / "outputs/afforestation/nuts2_monthly_weights.csv"
+GROWTH_WGTS_CSV  = BASE / "outputs/afforestation/afforestation_nuts2_monthly_weights.csv"
 DENSITY_XLS      = BASE / "outputs/afforestation/afforestation_nuts_biomass_densities.xlsx"
 NUTS2_GJ         = BASE / "data/nuts/NUTS_RG_03M_2013_4326_LEVL_2.geojson"
 PYPSA_GJ         = Path("/Users/albal/Library/CloudStorage/OneDrive-DanmarksTekniskeUniversitet/"
@@ -151,73 +152,46 @@ print(f"  Growth: {growth_annual.notna().sum()} NUTS2 regions with annual rate")
 print(f"  Monthly weights: {len(mw)} regions, row-sum ≈ {mw.sum(axis=1).mean():.3f}")
 
 # ══════════════════════════════════════════════════════════════════════════════
-# 3. DENSITY METHOD (cascade to full NUTS2 coverage)
+# 3. DENSITY METHOD — matching build_afforestation_potentials.py exactly
 # ══════════════════════════════════════════════════════════════════════════════
-print("Building density cascade...")
+# PyPSA-Eur uses NUTS0 (country-level) data only from Avitabile.
+# Countries absent from the dataset receive a hardcoded fallback of 117 t/ha
+# (the European average used in build_afforestation_potentials.py).
+# No NUTS1/NUTS2 cascade or spatial neighbour filling is applied.
+# Rates are intrinsic (without f_land = 0.6) for a like-for-like comparison.
+print("Building density rates (NUTS0-only, matching pypsa-eur logic)...")
+
+DENSITY_FALLBACK_TDMHA = 117.0   # t_DM/ha — default in build_afforestation_potentials.py
+DENSITY_FALLBACK_RATE  = DENSITY_FALLBACK_TDMHA / LIFETIME * CO2_PER_TONNE
 
 raw = pd.read_excel(DENSITY_XLS, sheet_name="BIOMASS 2020", header=1)
 raw.columns = ["name","iso","nuts","forest_area_ha","faws_ha","fnaws_ha",
                "agb_t","biomass_density","baws_t","bnaws_t","_","legend"]
 raw = raw[raw["iso"].notna() & (raw["name"] != "Name")].copy()
 raw["biomass_density"] = pd.to_numeric(raw["biomass_density"], errors="coerce")
-raw["rate"] = raw["biomass_density"] / LIFETIME * CO2_PER_TONNE * MAX_LAND
 raw["nuts"] = raw["nuts"].astype(str).str.strip()
 
-density_annual = pd.Series(np.nan, index=nuts_gdf.index, dtype=float)
-
-# Step 1: direct NUTS2 (len=4)
-for _, row in raw[raw["nuts"].str.len() == 4].iterrows():
-    nid = row["nuts"]
-    if nid in density_annual.index and pd.isna(density_annual[nid]):
-        density_annual[nid] = row["rate"]
-
-# Step 2: NUTS1 propagation (len=3)
-for _, row in raw[raw["nuts"].str.len() == 3].iterrows():
-    parent = row["nuts"]
-    for child in [n for n in density_annual.index if n.startswith(parent)
-                  and pd.isna(density_annual[n])]:
-        density_annual[child] = row["rate"]
-
-# Step 3: NUTS0 propagation (len=2)
+# Build NUTS0 lookup table (len==2 codes only, same filter as pypsa-eur)
+nuts0_rate = {}
 for _, row in raw[raw["nuts"].str.len() == 2].iterrows():
-    prefix = row["nuts"]
-    for child in [n for n in density_annual.index if n[:2] == prefix
-                  and pd.isna(density_annual[n])]:
-        density_annual[child] = row["rate"]
+    if pd.notna(row["biomass_density"]):
+        nuts0_rate[row["nuts"]] = row["biomass_density"] / LIFETIME * CO2_PER_TONNE
 
-n_miss = int(density_annual.isna().sum())
-print(f"  After direct/NUTS1/NUTS0: {len(density_annual)-n_miss} filled, {n_miss} missing")
+# Apply to all NUTS2 regions: NUTS0 lookup → fallback 117 t/ha
+density_annual = pd.Series(np.nan, index=nuts_gdf.index, dtype=float)
+for nid in density_annual.index:
+    cc = nid[:2]
+    density_annual[nid] = nuts0_rate.get(cc, DENSITY_FALLBACK_RATE)
 
-# Step 4: distance neighbour (100 km, iterated)
-if density_annual.isna().any():
-    gdf3035 = nuts_gdf.to_crs(3035)
-    nbrs = {rid: [n for n in gdf3035[
-                gdf3035.geometry.intersects(geom.buffer(100_000))].index if n != rid]
-            if (geom and not geom.is_empty) else []
-            for rid, geom in gdf3035.geometry.items()}
-    changed = True
-    while changed:
-        changed = False
-        for rid in list(density_annual.index[density_annual.isna()]):
-            valid = [n for n in nbrs.get(rid, []) if pd.notna(density_annual[n])]
-            if valid:
-                density_annual[rid] = density_annual[valid].mean()
-                changed = True
-    n_miss2 = int(density_annual.isna().sum())
-    print(f"  After neighbours: {n_miss-n_miss2} more filled ({n_miss2} left)")
+n_avit  = sum(1 for nid in density_annual.index if nid[:2] in nuts0_rate)
+n_fall  = len(density_annual) - n_avit
+print(f"  NUTS0 (Avitabile): {n_avit} regions  |  Fallback (117 t/ha): {n_fall} regions")
 
-# Step 5: country mean
-if density_annual.isna().any():
-    cmean = density_annual.groupby(density_annual.index.str[:2]).mean()
-    for rid in density_annual.index[density_annual.isna()]:
-        key = rid[:2]
-        if key in cmean.index and pd.notna(cmean[key]):
-            density_annual[rid] = cmean[key]
+# Western Balkans pseudo-codes — also not in Avitabile → fallback rate
+for code in EXTRA_GEOM:
+    density_annual[code] = DENSITY_FALLBACK_RATE
 
-# Step 7: Western Balkans
-density_annual = add_western_balkans_rates(density_annual, EXTRA_PYPSA)
-
-# Monthly rates: uniform 1/12
+# Monthly rates: uniform 1/12 (no seasonal variation in density method)
 density_monthly = pd.DataFrame(
     {m: density_annual / 12 for m in MONTH_NAMES},
     index=density_annual.index
@@ -281,58 +255,35 @@ fig1.subplots_adjust(left=0.01, right=0.99, top=0.90, bottom=0.08, wspace=0.06)
 draw_choro(axes[0], growth_annual,  CMAP_G, norm_rate,
            "Growth method — annual rate\n(Pilli MAI, NUTS2)", fig1, "tCO₂/ha/yr")
 draw_choro(axes[1], density_annual, CMAP_D, norm_rate,
-           "Density method — annual rate\n(Avitabile AGB, NUTS2 cascade)", fig1, "tCO₂/ha/yr")
+           "Density method — annual rate\n(Avitabile AGB, NUTS2 cascade; excl. $f_\\mathrm{land}$)", fig1, "tCO₂/ha/yr")
 draw_choro(axes[2], diff_annual,    cm.get_cmap("RdBu"), norm_diff,
            "Difference: growth − density\n[tCO₂/ha/yr]", fig1,
            "tCO₂/ha/yr  (red = growth higher, blue = density higher)")
 
 fig1.suptitle(
-    "Annual CO₂ sequestration rate — growth vs. density method (input data only, before CLC areas)",
-    fontsize=11, y=0.97
+    "Annual CO₂ sequestration rate — growth vs. density method (input data only, before CLC areas)\n"
+    "Density rates shown without land-utilization scaling coefficient "
+    r"($f_\mathrm{land} = 0.6$, applied identically to both methods in PyPSA-Eur)",
+    fontsize=10, y=0.97
 )
-for ext in ("png"):
+for ext in ("png",):
     fig1.savefig(OUT_DIR / f"fig_method_comparison_maps.{ext}", dpi=200, bbox_inches="tight")
 print("  Saved fig_method_comparison_maps")
 plt.close(fig1)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# FIGURE 2 — Seasonal profiles + NUTS2 scatter
+# FIGURE 2 — Seasonal profiles (2×2)
 # ══════════════════════════════════════════════════════════════════════════════
-print("Figure 2: seasonal profiles + scatter...")
+print("Figure 2: seasonal profiles...")
 
-fig2 = plt.figure(figsize=(18, 10))
-fig2.subplots_adjust(left=0.06, right=0.98, top=0.91, bottom=0.09,
-                     wspace=0.28, hspace=0.38)
+fig2, axes2 = plt.subplots(2, 2, figsize=(14, 9))
+fig2.subplots_adjust(left=0.07, right=0.97, top=0.91, bottom=0.09,
+                     wspace=0.30, hspace=0.42)
 
-ax_sc  = fig2.add_subplot(2, 3, (1, 2))  # top-left wide: NUTS2 scatter
-ax_sea = fig2.add_subplot(2, 3, 3)       # top-right: Europe-avg seasonal
-ax_n   = fig2.add_subplot(2, 3, 4)       # bottom-left: Northern Europe
-ax_c   = fig2.add_subplot(2, 3, 5)       # bottom-centre: Central Europe
-ax_s   = fig2.add_subplot(2, 3, 6)       # bottom-right: Southern Europe
-
-# ── Scatter: NUTS2 annual growth vs density ───────────────────────────────────
-both = pd.DataFrame({"growth": growth_annual, "density": density_annual}).dropna()
-diff_col = both["growth"] - both["density"]
-sc = ax_sc.scatter(both["growth"], both["density"],
-                   c=diff_col, cmap="RdBu", norm=norm_diff,
-                   s=14, alpha=0.72, zorder=3)
-fig2.colorbar(sc, ax=ax_sc, label="growth − density [tCO₂/ha/yr]", pad=0.01, shrink=0.85)
-lim = (0.5, 11.5)
-ax_sc.plot(lim, lim, "k--", lw=0.8, alpha=0.5, label="1 : 1")
-ax_sc.set_xlim(lim); ax_sc.set_ylim(lim)
-ax_sc.set_xlabel("Growth method [tCO₂/ha/yr]", fontsize=9)
-ax_sc.set_ylabel("Density method [tCO₂/ha/yr]", fontsize=9)
-ax_sc.set_title("NUTS2-level annual rates (n={})".format(len(both)),
-                fontsize=10, fontweight="bold")
-ax_sc.legend(fontsize=8); ax_sc.grid(True, alpha=0.3)
-
-corr = both["growth"].corr(both["density"])
-rmse = np.sqrt(((both["growth"] - both["density"])**2).mean())
-bias = (both["growth"] - both["density"]).mean()
-ax_sc.text(0.03, 0.97,
-           f"r = {corr:.2f}   RMSE = {rmse:.2f}   Bias = {bias:+.2f} tCO₂/ha/yr",
-           transform=ax_sc.transAxes, ha="left", va="top", fontsize=8.5,
-           bbox=dict(boxstyle="round,pad=0.35", fc="white", ec="0.5", alpha=0.88))
+ax_sea = axes2[0, 0]   # top-left:     Europe-wide average
+ax_n   = axes2[0, 1]   # top-right:    Northern Europe
+ax_c   = axes2[1, 0]   # bottom-left:  Central Europe
+ax_s   = axes2[1, 1]   # bottom-right: Southern Europe
 
 # ── Seasonal profile helper ────────────────────────────────────────────────────
 UNIFORM = np.array([1.0/12]*12)
@@ -402,7 +353,7 @@ fig2.suptitle(
     "Input data only — CLC areas identical for both methods",
     fontsize=11, y=0.97
 )
-for ext in ("png"):
+for ext in ("png",):
     fig2.savefig(OUT_DIR / f"fig_method_comparison_seasonal.{ext}", dpi=200, bbox_inches="tight")
 print("  Saved fig_method_comparison_seasonal")
 plt.close(fig2)

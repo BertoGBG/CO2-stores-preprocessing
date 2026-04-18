@@ -13,8 +13,8 @@ Afforestation – Method 2 (Pilli + FluxCom):
   2. download_zenodo_pilli_afforestation    → data/zenodo_Pilli/
   3. download_fluxcom                       → data/fluxcom_raw/
   4. 01_compute_afforestation_rates_pilli   → outputs/afforestation/afforestation_rates_nuts2_full.csv
-  5. 02_compute_nuts2_profiles              → outputs/afforestation/nuts2_monthly_weights.csv
-                                               outputs/afforestation/nuts2_monthly_rates.csv
+  5. 02_compute_nuts2_profiles              → outputs/afforestation/afforestation_nuts2_monthly_weights.csv
+                                               outputs/afforestation/afforestation_nuts2_monthly_rates.csv
   6. 03_plot_check                          → outputs/afforestation/fig_*.png  (optional diagnostics)
 
 Perennialisation:

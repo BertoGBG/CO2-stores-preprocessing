@@ -8,7 +8,7 @@ Produces:
       12-panel map of monthly rates across Europe.
 
 Source data:
-  - outputs/afforestation/nuts2_monthly_rates.csv   (tCO₂ ha⁻¹ month⁻¹)
+  - outputs/afforestation/afforestation_nuts2_monthly_rates.csv   (tCO₂ ha⁻¹ month⁻¹)
   - data/nuts/NUTS_RG_03M_2013_4326_LEVL_2.geojson  (local NUTS-2013 boundaries)
 
 Usage:
@@ -25,7 +25,7 @@ import geopandas as gpd
 
 ROOT_DIR   = Path(__file__).resolve().parents[2]
 OUTPUT_DIR = ROOT_DIR / "outputs" / "afforestation"
-RATES_CSV  = OUTPUT_DIR / "nuts2_monthly_rates.csv"
+RATES_CSV  = OUTPUT_DIR / "afforestation_nuts2_monthly_rates.csv"
 NUTS_PATH  = ROOT_DIR / "data" / "nuts" / "NUTS_RG_03M_2013_4326_LEVL_2.geojson"
 
 # PyPSA-EUR GeoJSON for Western Balkans proxy geometry (RS/AL/BA/XK absent from Eurostat)
@@ -109,18 +109,22 @@ def plot_seasonal_map(rates: pd.DataFrame, nuts: gpd.GeoDataFrame):
         ax.set_ylim(34, 72)
         ax.axis("off")
 
+    # Reserve space at the bottom for the colorbar; avoid tight_layout fighting it
+    fig.subplots_adjust(left=0.01, right=0.99, top=0.91, bottom=0.08,
+                        wspace=0.04, hspace=0.18)
+
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=mcolors.Normalize(vmin=vmin, vmax=vmax))
     sm.set_array([])
-    cbar = fig.colorbar(sm, ax=axes, fraction=0.02, pad=0.02)
+    cbar_ax = fig.add_axes([0.15, 0.03, 0.70, 0.022])   # [left, bottom, width, height]
+    cbar = fig.colorbar(sm, cax=cbar_ax, orientation="horizontal")
     cbar.set_label("CO₂ sequestration rate (tCO₂ ha⁻¹ month⁻¹)", fontsize=9)
 
     fig.suptitle(
         "Monthly afforestation CO₂ sequestration rates per NUTS-2\n"
         "(rotation-averaged MAI from Pilli et al. 2024, seasonalised with FluxCom GPP 2010–2012)",
         fontsize=11,
-        y=1.01,
+        y=0.98,
     )
-    fig.tight_layout()
     out = OUTPUT_DIR / "fig_seasonal_map.png"
     fig.savefig(out, dpi=150, bbox_inches="tight")
     print(f"  Saved: {out}")

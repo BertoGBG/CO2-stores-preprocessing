@@ -167,11 +167,11 @@ GPP signal fall back to: neighbour mean (≤100 km) → country mean → uniform
   Full coverage: all ~320 NUTS-2 regions in the PyPSA-Eur model, with fallback values
   recorded per region. **Primary input for PyPSA-Eur** (`"growth"` method).
 
-* `outputs/afforestation/nuts2_monthly_weights.csv`
+* `outputs/afforestation/afforestation_nuts2_monthly_weights.csv`
   12 normalised monthly GPP weights per NUTS-2 region (rows sum to 1).
   **Used by PyPSA-Eur** to set the time-varying efficiency of the afforestation Link.
 
-* `outputs/afforestation/nuts2_monthly_rates.csv`
+* `outputs/afforestation/afforestation_nuts2_monthly_rates.csv`
   Monthly CO₂ sequestration rates (tCO₂ ha⁻¹ month⁻¹) per NUTS-2 region.
 
 * `outputs/afforestation/fig_monthly_profiles_sample.png`
@@ -224,7 +224,7 @@ The following files from this package are directly read by the PyPSA-Eur workflo
 |------|------------|-------------|
 | `outputs/afforestation/afforestation_nuts_biomass_densities.xlsx` | Afforestation | Biomass density per NUTS-2 (`"density"` method) |
 | `outputs/afforestation/afforestation_rates_nuts2_full.csv` | Afforestation | Rotation-averaged MAI per NUTS-2 (`"growth"` method) |
-| `outputs/afforestation/nuts2_monthly_weights.csv` | Afforestation | Monthly GPP weights for seasonal dispatch profile |
+| `outputs/afforestation/afforestation_nuts2_monthly_weights.csv` | Afforestation | Monthly GPP weights for seasonal dispatch profile |
 | `outputs/perennialisation/eurostat_apro_cpshr_nuts2_raw.csv` | Perennialisation | Eurostat crop harvest at NUTS-2 |
 | `outputs/perennialisation/eurostat_apro_cpshr_nuts0_raw.csv` | Perennialisation | Eurostat crop harvest at NUTS-0 |
 | `outputs/ERW/World_Ecological_BioVal_cluster.tif` | ERW | Ecological biome clusters for ERW potential |

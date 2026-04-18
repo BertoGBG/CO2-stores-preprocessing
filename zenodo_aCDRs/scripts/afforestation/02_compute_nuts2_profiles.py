@@ -18,8 +18,8 @@ Pipeline:
 Uses NUTS 2013 regions by default (consistent with zenodo_aCDRs growth rates).
 
 Outputs:
-  output/nuts2_monthly_weights.csv   — NUTS2 × 12 weights (sum = 1 per row)
-  output/nuts2_monthly_rates.csv     — NUTS2 × 12 monthly tCO₂ ha⁻¹ month⁻¹
+  output/afforestation_nuts2_monthly_weights.csv   — NUTS2 × 12 weights (sum = 1 per row)
+  output/afforestation_nuts2_monthly_rates.csv     — NUTS2 × 12 monthly tCO₂ ha⁻¹ month⁻¹
 
 Reference:
   Jung, M. et al. (2020). Biogeosciences, 17(5), 1343–1365.

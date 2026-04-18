@@ -73,10 +73,13 @@
 \subsection{Afforestation as a Carbon Dioxide Removal Technology}
 \label{sec:afforestation_methodology}
 
-Afforestation was first introduced in PyPSA-eur in \cite{Fernandes2026} as a spatially resolved carbon dioxide removal (CDR) technology. The implementation requires two inputs per network node: (i)~the
-available land area from CORINE land cover, (ii)~a CO$_2$ sequestration rate
-in \si{tCO_2 / (ha a)}. Here is introduced a more accurate approach to the calculation of the CO2 sequestration rates, which ensure consistency with EU LULUCF legislation, and provides a sub-annual temporal profile distributing the uptake across calendar months. This section describes
-the derivation of both CO$_2$ sequestration rates and temporal profiles from publicly available European forest inventory and remote-sensing data.
+Afforestation was first introduced in PyPSA-eur in \cite{Fernandes2026} as a spatially resolved carbon dioxide removal (CDR) technology. The total sequestration potential of each network node is computed as the product of two independent inputs:
+\begin{equation}
+    \Pi_r = A_r \times \overline{\text{MAI}}_{\text{CO}_2,\, r}
+    \quad [\text{tCO}_2\,\text{yr}^{-1}]
+    \label{eq:node_potential}
+\end{equation}
+where $A_r$~[\si{ha}] is the land area available for afforestation in node~$r$, derived from the CORINE Land Cover (CLC) dataset as described in \citet{Fernandes2026}, and $\overline{\text{MAI}}_{\text{CO}_2,\,r}$~[\si{tCO_2\,ha^{-1}\,yr^{-1}}] is the node-level CO$_2$ sequestration rate. The land estimation from CLC is presented in detail in \citet{Fernandes2026} and is identical for both methods described in this document. This section focuses exclusively on the derivation of the CO$_2$ sequestration rates and their temporal disaggregation, and presents a comparison between the updated growth-based method (introduced here) and the original density-based method of \citet{Fernandes2026}. Both methods are currently available in PyPSA-Eur via the \texttt{afforestation[potential\_type]} configuration key.
 
 % =============================================================================
 \subsubsection{Annual Sequestration Rate: Pilli et al.\ Yield Table Library}
@@ -493,36 +496,39 @@ Table~\ref{tab:affo_rates_sample} reports a selection of regional rates.
 \begin{table}[htbp]
 \centering
 \caption{Rotation-averaged CO$_2$ sequestration rates for selected NUTS-2
-regions. $\bar{T}$: mean rotation age across forest types included;
-$n$: number of productive forest types.}
+regions. $\bar{T}$: mean rotation age across productive forest types;
+$n$: number of productive forest types in the 50/50 con/broad blend.
+Dashes indicate regions filled via the spatial fallback cascade
+(Section~\ref{sec:affo_nuts2_coverage}), for which $\bar{T}$ and $n$
+are not defined at NUTS-2 level.}
 \label{tab:affo_rates_sample}
 \sisetup{round-mode=places, round-precision=1}
 \begin{tabular}{
     l
     l
     S[table-format=2.1]
-    S[table-format=3.0]
-    S[table-format=2.0]
+    l
+    l
 }
 \toprule
 {Country} & {NUTS-2} &
 {Rate [\si{tCO_2\,ha^{-1}\,yr^{-1}}]} &
 {$\bar{T}$ [yr]} & {$n$} \\
 \midrule
-Austria   & AT21  & 6.8  & 47  & 8  \\
-Belgium   & BE20  & 6.9  & 34  & 7  \\
-Czechia   & CZ01  & 5.2  & 48  & 4  \\
-Denmark   & DK01  & 5.8  & 39  & 7  \\
-Denmark   & DK05  & 3.9  & 39  & 7  \\
-Finland   & FI1A  & 2.5  & 25  & 3  \\
-France    & FRF1  & 5.4  & 27  & 6  \\
-Germany   & DE2   & 7.2  & 34  & 8  \\
-Ireland   & IE    & 7.1  & 33  & 6  \\
-Italy     & ITH5  & 5.6  & 40  & 14 \\
-Poland    & SL    & 5.9  & 31  & 8  \\
-Romania   & RO21  & 6.0  & 28  & 9  \\
-Sweden    & SE11  & 4.3  & 100 & 4  \\
-Sweden    & SE33  & 2.1  & 33  & 4  \\
+Austria   & AT21  & 6.8  & 47  & 8   \\
+Belgium   & BE35  & 6.8  & 34  & 7   \\
+Czechia   & CZ01  & 5.2  & 48  & 4   \\
+Denmark   & DK01  & 5.8  & 39  & 7   \\
+Denmark   & DK05  & 3.9  & 39  & 7   \\
+Finland   & FI1D  & 3.4  & --- & --- \\
+France    & FR42  & 5.4  & --- & --- \\
+Germany   & DE21  & 7.2  & 34  & 8   \\
+Ireland   & IE01  & 7.1  & --- & --- \\
+Italy     & ITH5  & 5.6  & 40  & 14  \\
+Poland    & PL42  & 6.7  & --- & --- \\
+Romania   & RO21  & 6.0  & 28  & 9   \\
+Sweden    & SE11  & 4.4  & 100 & 4   \\
+Sweden    & SE33  & 2.1  & 32  & 4   \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -542,9 +548,8 @@ in Table~\ref{tab:affo_rates_sample}.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{figures/afforestation_potentials_s_50.png}
-    \caption{Monthly afforestation CO$_2$ sequestration rates per network node
-    for a 50-node PyPSA-Eur configuration
+    \includegraphics[width=\textwidth]{figures/fig_seasonal_map.png}
+    \caption{Monthly afforestation CO$_2$ sequestration rates per NUTS-2 regions
     [\si{tCO_2\,ha^{-1}\,month^{-1}}].
     Each panel shows one calendar month; node colours reflect the product of
     the rotation-averaged MAI (Section~\ref{sec:affo_mai}) and the
@@ -555,6 +560,121 @@ in Table~\ref{tab:affo_rates_sample}.
     PyPSA-Eur \texttt{afforestation} branch.}
     \label{fig:affo_monthly_nodes}
 \end{figure}
+
+% =============================================================================
+\subsubsection{Comparison with the Density-Based Method}
+\label{sec:affo_comparison}
+
+\paragraph{Density-based method (Fernandes et al.\ 2026).}
+The original implementation in \citet{Fernandes2026} derives the annual CO$_2$ sequestration rate from the standing above-ground biomass density of existing forests, using the Avitabile pan-European AGB map \citep{Avitabile2024}. The intrinsic sequestration rate is:
+\begin{equation}
+    \tilde{r}_{\text{density}, r}
+    = \frac{\rho_r}{\tau} \times f_{\text{CO}_2}
+    \quad [\text{tCO}_2\,\text{ha}^{-1}\,\text{yr}^{-1}]
+    \label{eq:density_rate_intrinsic}
+\end{equation}
+where $\rho_r$~[\si{t_{DM}\,ha^{-1}}] is the above-ground biomass density of existing forests in region~$r$, $\tau = 30$~yr is a fixed lifetime, and $f_{\text{CO}_2} = 1.83$~\si{tCO_2\,t_{DM}^{-1}} is the CO$_2$ equivalent per tonne of dry biomass. In PyPSA-Eur, this intrinsic rate is further multiplied by a dimensionless land-utilization scaling coefficient $f_{\text{land}} = 0.6$:
+\begin{equation}
+    r_{\text{density}, r}
+    = \tilde{r}_{\text{density}, r} \times f_{\text{land}}
+    \quad [\text{tCO}_2\,\text{ha}^{-1}\,\text{yr}^{-1}]
+    \label{eq:density_rate}
+\end{equation}
+$f_{\text{land}}$ is a policy scaling parameter, not a physical property of the forest. It captures the assumption that only a fraction of the available afforestation land will actually be planted, and it is applied identically to both the growth and density methods in PyPSA-Eur. It is therefore excluded from the method comparison below, which focuses on the intrinsic CO$_2$ sequestration rates $\tilde{r}$ derived from each data source. The Avitabile dataset provides biomass density estimates primarily at NUTS-0 (country) level; sub-national NUTS-2 resolution is obtained by applying the national value uniformly to all child NUTS-2 regions. Countries absent from the Avitabile dataset (principally the Western Balkans) receive a hardcoded fallback of $\rho = 117$~\si{t_{DM}\,ha^{-1}}. The density method assigns a uniform sequestration rate across all 12 months (i.e.\ $w_{m,r} = 1/12$), without seasonal variation.
+
+\paragraph{Data origin per NUTS-2 region.}
+The spatial coverage of the two methods differs substantially, reflecting the distinct data sources and spatial resolution of their respective filling strategies.
+Figure~\ref{fig:diag_nuts2_sources} shows, for each NUTS-2 region, which step of the filling logic provided the sequestration rate.
+
+For the \emph{growth method} (left panel), the filling cascade operates at NUTS-2 resolution: regions with a direct entry in the Pilli yield-table library are coloured dark green; regions that inherited a NUTS-1 or NUTS-0 entry are progressively lighter green. Regions not covered by Pilli at any administrative level receive a distance-weighted neighbour mean (within 100~km, orange) or a country mean (dark orange). The four Western Balkans pseudo-regions (RS/AL/BA/XK) are coloured purple.
+
+For the \emph{density method} (right panel), the filling logic is simpler: all NUTS-2 regions within a country receive the single national (NUTS-0) AGB density from Avitabile (blue). Countries absent from that dataset fall back to the hardcoded $117~\si{t_{DM}\,ha^{-1}}$ value (pale blue). No sub-national cascade is applied.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_diag_nuts2_sources.png}
+    \caption{Origin of the NUTS-2 CO$_2$ sequestration rate for each region.
+    \textit{Left:} growth method (Pilli MAI). Colours indicate which step of the
+    six-step filling cascade provided the rate: dark green = direct NUTS-2 entry;
+    medium/light green = NUTS-1/NUTS-0 propagation; orange = 100-km neighbour mean;
+    dark orange = country mean; purple = Western Balkans pseudo-regions.
+    \textit{Right:} density method (Avitabile AGB) as implemented in PyPSA-Eur.
+    Blue = country-level (NUTS-0) AGB density from Avitabile; pale blue = hardcoded
+    fallback (117~\si{t_{DM}\,ha^{-1}}) for countries absent from the dataset;
+    purple = Western Balkans pseudo-regions (also receive the fallback rate).
+    No sub-national spatial cascade is applied in the density method.}
+    \label{fig:diag_nuts2_sources}
+\end{figure}
+
+\paragraph{Comparison of annual sequestration rates.}
+Figure~\ref{fig:method_comparison_maps} shows the spatial distribution of annual CO$_2$ sequestration rates for both methods across all NUTS-2 regions, and the signed difference (growth minus density). The density-method rates shown are the intrinsic values $\tilde{r}_{\text{density}}$ (without the $f_{\text{land}} = 0.6$ scaling coefficient), enabling a direct comparison of the underlying forest productivity data. The growth-based rates vary at NUTS-2 resolution reflecting local forest composition and management, while the density-based rates are uniform within each country. Because $\tilde{r}_{\text{density}}$ is higher than the scaled value applied in PyPSA-Eur by a factor of $1/0.6 \approx 1.67$, the density method tends to exceed the growth method in large parts of southern and eastern Europe.
+
+Notable differences emerge for several countries. Croatia (\texttt{HR}) has a substantially lower growth rate (${\approx}\SI{3.8}{tCO_2\,ha^{-1}\,yr^{-1}}$) than the density method (${\approx}\SI{6}{tCO_2\,ha^{-1}\,yr^{-1}}$), reflecting a predominantly low-BCEF conifer mix in the Pilli library. Finland (\texttt{FI}) and Sweden (\texttt{SE}) show higher growth rates in the south and lower in the boreal north, a spatial gradient that is invisible to the density method. Portugal (\texttt{PT}) and several southern European countries exhibit higher density-method rates, reflecting high standing biomass stock that does not translate into equally high annual increments.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_method_comparison_maps.png}
+    \caption{Annual CO$_2$ sequestration rates [\si{tCO_2\,ha^{-1}\,yr^{-1}}] at NUTS-2 resolution.
+    \textit{Left:} growth method (Pilli MAI, this work).
+    \textit{Centre:} intrinsic density-method rate $\tilde{r}_{\text{density}}$
+    (Avitabile AGB, \citealt{Fernandes2026}; Eq.~\ref{eq:density_rate_intrinsic}),
+    uniform within each country; the land-utilization scaling coefficient
+    $f_{\text{land}} = 0.6$ (Eq.~\ref{eq:density_rate}) is excluded to allow
+    a like-for-like comparison of the underlying forest productivity data.
+    \textit{Right:} signed difference (growth $-$ density); diverging colour scale centred at zero.}
+    \label{fig:method_comparison_maps}
+\end{figure}
+
+\paragraph{Comparison of seasonal profiles.}
+Figure~\ref{fig:method_comparison_seasonal} compares the monthly sequestration profiles derived from each method. The growth method follows the GPP-driven seasonal cycle, with strong summer peaks and near-zero winter rates in northern and continental regions. The density method has no seasonal variation by construction (flat line at annual rate / 12). For southern European regions, the seasonal amplitude from the growth method is modest, reflecting a longer growing season captured by the FluxCom GPP climatology.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_method_comparison_seasonal.png}
+    \caption{Monthly CO$_2$ sequestration rates [\si{tCO_2\,ha^{-1}\,month^{-1}}] for the growth method
+    (mean $\pm$ interquartile range across NUTS-2 regions in each macro-region; solid line)
+    versus the density method (dashed flat line at annual rate / 12).
+    The four panels correspond to European macro-regions spanning a north–south gradient.}
+    \label{fig:method_comparison_seasonal}
+\end{figure}
+
+% =============================================================================
+\subsubsection{Comparison of PyPSA-Eur Optimisation Results}
+\label{sec:affo_pypsa_comparison}
+
+\textcolor{red}{\textbf{[PLACEHOLDER --- results pending from cluster runs]}}
+
+This section will compare the afforestation CDR deployment and costs obtained from PyPSA-Eur optimisations using the growth-based (Section~\ref{sec:affo_rate}) and density-based (Section~\ref{sec:affo_comparison}) methods, holding all other model settings identical. Both runs use the CLC land potentials from \citet{Fernandes2026}. Output is generated by \texttt{check\_afforestation\_pipeline.py} and \texttt{plot\_afforestation\_comparison.py}.
+
+\begin{figure}[htbp]
+    \centering
+    \fbox{\parbox{0.9\textwidth}{\centering\vspace{3cm}
+        \textcolor{gray}{\textit{[PLACEHOLDER: node-level afforestation potential map --- growth vs.\ density, two panels]}}\\[0.5em]
+        \textcolor{gray}{\small Generated by \texttt{plot\_afforestation\_comparison.py}}
+    \vspace{3cm}}}
+    \caption{Optimised afforestation potential per network node [\si{tCO_2\,yr^{-1}}] for the growth method (left) and density method (right).}
+    \label{fig:affo_pypsa_comparison}
+\end{figure}
+
+Table~\ref{tab:affo_pypsa_summary} summarises the key European-wide indicators from both runs.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of afforestation CDR indicators from PyPSA-Eur optimisation runs.
+Potential-weighted averages are computed using the optimised node-level annual sequestration
+potential as weights.}
+\label{tab:affo_pypsa_summary}
+\begin{tabular}{lcc}
+\toprule
+\textbf{Indicator} & \textbf{Growth method} & \textbf{Density method} \\
+\midrule
+Total Europe-wide CDR potential [\si{MtCO_2\,yr^{-1}}]              & --- & --- \\
+Mean node CDR potential [\si{MtCO_2\,yr^{-1}}]                      & --- & --- \\
+Potential-weighted seq.\ rate [\si{tCO_2\,ha^{-1}\,yr^{-1}}]        & --- & --- \\
+Potential-weighted cost [\si{EUR\,tCO_2^{-1}}]                       & --- & --- \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 % =============================================================================
 \newpage
