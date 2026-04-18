@@ -380,7 +380,7 @@ def main():
     # Rename integer month columns to month names for CSV output
     weights = weights_int.rename(columns={i: n for i, n in enumerate(MONTH_NAMES, 1)})
 
-    out_w = OUTPUT_DIR / "nuts2_monthly_weights.csv"
+    out_w = OUTPUT_DIR / "afforestation_nuts2_monthly_weights.csv"
     weights.to_csv(out_w)
     print(f"  Saved: {out_w}")
 
@@ -388,7 +388,7 @@ def main():
     print("Computing monthly tCO₂ rates ...")
     monthly_rates = compute_monthly_rates(weights_int.copy(), args.rates)
     if monthly_rates is not None:
-        out_r = OUTPUT_DIR / "nuts2_monthly_rates.csv"
+        out_r = OUTPUT_DIR / "afforestation_nuts2_monthly_rates.csv"
         monthly_rates.to_csv(out_r)
         print(f"  Saved: {out_r}")
 
