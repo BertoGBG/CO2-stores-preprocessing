@@ -28,6 +28,15 @@ OUTPUT_DIR = ROOT_DIR / "outputs" / "afforestation"
 RATES_CSV  = OUTPUT_DIR / "nuts2_monthly_rates.csv"
 NUTS_PATH  = ROOT_DIR / "data" / "nuts" / "NUTS_RG_03M_2013_4326_LEVL_2.geojson"
 
+# PyPSA-EUR GeoJSON for Western Balkans proxy geometry (RS/AL/BA/XK absent from Eurostat)
+PYPSA_GJ = Path(
+    "/Users/albal/Library/CloudStorage/OneDrive-DanmarksTekniskeUniversitet/"
+    "01_DTU_research/01_Projects/01_pypsa-eur_AA/pypsa-eur/resources/"
+    "regions_onshore_base_s_90.geojson"
+)
+# Maps pseudo-NUTS2 code → PyPSA node name in regions_onshore_base_s_90.geojson
+EXTRA_GEOM = {"RS00": "RS2 0", "AL00": "AL2 0", "BA00": "BA2 0", "XK00": "XK2 0"}
+
 MONTH_NAMES = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -139,6 +148,25 @@ def main():
             nuts = nuts[nuts["LEVL_CODE"] == 2].copy()
         nuts = nuts[["NUTS_ID", "geometry"]].to_crs("EPSG:4326")
         print(f"  {len(nuts)} NUTS-2 regions loaded.")
+
+        # Add proxy geometry for Western Balkans (RS/AL/BA/XK absent from Eurostat GeoJSON)
+        if PYPSA_GJ.exists():
+            pypsa_gdf = gpd.read_file(str(PYPSA_GJ)).set_index("name")
+            extra_rows = []
+            for nuts_id, node_name in EXTRA_GEOM.items():
+                if node_name in pypsa_gdf.index:
+                    extra_rows.append({
+                        "NUTS_ID": nuts_id,
+                        "geometry": pypsa_gdf.loc[node_name, "geometry"],
+                    })
+            if extra_rows:
+                extra_nuts = gpd.GeoDataFrame(extra_rows, crs="EPSG:4326")
+                nuts = pd.concat([nuts, extra_nuts], ignore_index=True)
+                print(f"  Added {len(extra_rows)} Western Balkans proxy geometries "
+                      f"({[r['NUTS_ID'] for r in extra_rows]}).")
+        else:
+            print(f"  Warning: PyPSA GeoJSON not found at {PYPSA_GJ}; Balkans will be grey.")
+
         print("Plotting seasonal map ...")
         plot_seasonal_map(rates, nuts)
 

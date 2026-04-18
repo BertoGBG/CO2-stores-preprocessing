@@ -392,6 +392,75 @@ def main():
         monthly_rates.to_csv(out_r)
         print(f"  Saved: {out_r}")
 
+    # ── Step 7: Western Balkans pseudo-NUTS2 (RS/AL/BA/XK absent from Eurostat GeoJSON) ─
+    # These countries have no Eurostat NUTS2 regions, but are present in PyPSA-EUR.
+    # Use neighbour-country mean monthly weight profile (same cascade as script 01 Step 7).
+    EXTRA_PYPSA = {
+        "RS00": ["HR", "HU", "RO", "BG"],
+        "AL00": ["EL", "MK"],
+        "BA00": ["HR", "ME"],
+        "XK00": ["MK", "RS00"],  # RS00 processed first → available in extra_w_rows
+    }
+
+    # Load annual rates for pseudo-codes from the full rates CSV
+    extra_annual = {}
+    if args.rates.exists():
+        annual_df = pd.read_csv(args.rates)
+        id_col_a = "NUTS2" if "NUTS2" in annual_df.columns else annual_df.columns[0]
+        if "CO2 seq rate tCO2/(ha y)" in annual_df.columns:
+            val_col_a = "CO2 seq rate tCO2/(ha y)"
+        elif "affo rate (t/ha/y)" in annual_df.columns:
+            val_col_a = "affo rate (t/ha/y)"
+        else:
+            numeric_a = annual_df.select_dtypes(include="number").columns
+            val_col_a = numeric_a[0] if len(numeric_a) else None
+        if val_col_a:
+            annual_ser = annual_df.set_index(id_col_a)[val_col_a]
+            for pseudo in EXTRA_PYPSA:
+                if pseudo in annual_ser.index:
+                    extra_annual[pseudo] = float(annual_ser[pseudo])
+
+    extra_w_rows = {}  # pseudo_code → Series indexed by MONTH_NAMES
+    extra_r_rows = {}  # pseudo_code → Series indexed by MONTH_NAMES
+
+    for pseudo_code, nbr_countries in EXTRA_PYPSA.items():
+        profiles = []
+        for cc in nbr_countries:
+            if cc in extra_w_rows:
+                # Already-computed pseudo-code (e.g. RS00 used for XK00)
+                profiles.append(extra_w_rows[cc])
+            else:
+                mask = weights.index.str[:2] == cc
+                if mask.any():
+                    profiles.append(weights.loc[mask].mean())
+
+        if profiles:
+            profile = pd.concat(profiles, axis=1).mean(axis=1)
+            profile = profile / profile.sum()  # ensure sums to 1
+        else:
+            profile = pd.Series([1.0 / 12] * 12, index=MONTH_NAMES)
+
+        extra_w_rows[pseudo_code] = profile
+
+        if pseudo_code in extra_annual:
+            extra_r_rows[pseudo_code] = profile * extra_annual[pseudo_code]
+
+    if extra_w_rows:
+        extra_w_df = pd.DataFrame(extra_w_rows).T
+        extra_w_df.index.name = "NUTS_ID"
+        weights_full = pd.concat([weights, extra_w_df])
+        weights_full.to_csv(out_w)
+        print(f"  Step 7: appended {len(extra_w_rows)} Western Balkans weights → {out_w} "
+              f"({len(weights_full)} total rows)")
+
+    if extra_r_rows and monthly_rates is not None:
+        extra_r_df = pd.DataFrame(extra_r_rows).T
+        extra_r_df.index.name = "NUTS_ID"
+        monthly_rates_full = pd.concat([monthly_rates, extra_r_df])
+        monthly_rates_full.to_csv(out_r)
+        print(f"  Step 7: appended {len(extra_r_rows)} Western Balkans rates → {out_r} "
+              f"({len(monthly_rates_full)} total rows)")
+
     # Sanity check
     print("\n── Row-sum check (all should be 1.0) ──")
     print(weights.sum(axis=1).describe().to_string())

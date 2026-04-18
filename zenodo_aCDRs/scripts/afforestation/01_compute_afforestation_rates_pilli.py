@@ -245,9 +245,23 @@ def get_bcef_for_age(bcef_lookup, country, forest_type, region, mgmt_type, age_c
     return 0.7  # conservative default
 
 
+# PyPSA-EUR modelled countries not in the Eurostat NUTS2 GeoJSON.
+# Keys are pseudo-NUTS2 codes used in the output CSV; values are lists of
+# NUTS2 country prefixes whose filled rates are averaged to produce a proxy.
+# Ordering matters: XK depends on RS being filled first.
+EXTRA_PYPSA_COUNTRIES = {
+    "RS00": ["HR", "HU", "RO", "BG"],   # Serbia: surrounded by these
+    "AL00": ["EL", "MK"],               # Albania: border Greece + N.Macedonia
+    "BA00": ["HR", "ME"],               # Bosnia: border Croatia + Montenegro
+    "XK00": ["MK", "RS00"],             # Kosovo: border N.Macedonia + Serbia
+}
+
+
 def expand_to_all_nuts2(agg: pd.DataFrame, geojson_path: Path) -> pd.DataFrame:
     """
-    Map Pilli-computed rates to ALL NUTS2 regions in the reference GeoJSON.
+    Map Pilli-computed rates to ALL NUTS2 regions in the reference GeoJSON,
+    plus pseudo-NUTS2 entries for Western Balkan countries present in PyPSA-EUR
+    but absent from the Eurostat NUTS2 GeoJSON (RS, AL, BA, XK).
 
     Pilli data covers only countries with forest inventory data and uses a mix
     of NUTS2, NUTS1, country-level, and internal region codes. This function
@@ -264,6 +278,8 @@ def expand_to_all_nuts2(agg: pd.DataFrame, geojson_path: Path) -> pd.DataFrame:
       5. Country mean        — mean of all filled NUTS2 in same country (handles
                                islands and other isolated regions)
       6. Malta / Cyprus      — copy from Crete (EL43), closest Mediterranean analog
+      7. Western Balkans     — RS/AL/BA/XK are absent from the Eurostat GeoJSON;
+                               assign the mean rate of filled neighbouring countries
     """
     # Load full NUTS2 geometry
     nuts = gpd.read_file(str(geojson_path))
@@ -365,13 +381,53 @@ def expand_to_all_nuts2(agg: pd.DataFrame, geojson_path: Path) -> pd.DataFrame:
                 rates[code] = rates["EL43"]
                 source[code] = "EL43 copy (Crete)"
 
+    # ── Step 7: Western Balkans (RS, AL, BA, XK) ─────────────────────────────
+    # These countries are modelled in PyPSA-EUR but absent from the Eurostat
+    # NUTS2 GeoJSON, so they are never created in the rates index above.
+    # We append pseudo-NUTS2 entries (e.g. RS00) using the mean of filled
+    # NUTS2 regions in geographically neighbouring countries.
+    # EXTRA_PYPSA_COUNTRIES is defined above; XK00 uses RS00, so RS00 must
+    # be processed first (dict insertion order is preserved in Python ≥ 3.7).
+    extra_rates = {}
+    extra_source = {}
+    for pseudo_code, neighbour_prefixes in EXTRA_PYPSA_COUNTRIES.items():
+        neighbour_vals = []
+        for prefix in neighbour_prefixes:
+            if prefix.endswith("00"):
+                # Reference a previously added pseudo entry
+                if prefix in extra_rates:
+                    neighbour_vals.append(extra_rates[prefix])
+            else:
+                # All NUTS2 of that country
+                mask = rates.index.str[:2] == prefix
+                vals = rates[mask].dropna()
+                if not vals.empty:
+                    neighbour_vals.append(vals.mean())
+        if neighbour_vals:
+            val = float(np.mean(neighbour_vals))
+            extra_rates[pseudo_code]  = val
+            extra_source[pseudo_code] = (
+                f"avg neighbours ({', '.join(neighbour_prefixes)})"
+            )
+            print(f"    Step 7: {pseudo_code} = {val:.3f} tCO₂/ha/yr "
+                  f"(mean of {neighbour_prefixes})")
+        else:
+            print(f"[warn] Step 7: could not fill {pseudo_code} — "
+                  f"no filled neighbours in {neighbour_prefixes}")
+
+    if extra_rates:
+        extra_series_r = pd.Series(extra_rates,  name="mai_co2_mean", dtype=float)
+        extra_series_s = pd.Series(extra_source, name="source",       dtype="string")
+        rates  = pd.concat([rates,  extra_series_r])
+        source = pd.concat([source, extra_series_s])
+
     # Final report
     n_missing = int(rates.isna().sum())
     if n_missing:
         print(f"[warn] {n_missing} NUTS2 still missing after all fallbacks: "
               f"{list(rates.index[rates.isna()])}")
     else:
-        print(f"[ok] All {len(rates)} NUTS2 regions covered.")
+        print(f"[ok] All {len(rates)} NUTS2 + Western Balkans pseudo-codes covered.")
 
     out = pd.DataFrame({"CO2 seq rate tCO2/(ha y)": rates, "Source": source})
     out.index.name = "NUTS2"

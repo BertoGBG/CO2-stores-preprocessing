@@ -319,3 +319,7 @@ UKM2,6.860902669406321,avg neighbours (100km)
 UKM3,7.108701256613757,avg neighbours (100km)
 UKM5,7.108701256613757,avg neighbours (100km)
 UKM6,7.108701256613757,avg neighbours (100km)
+RS00,5.253410189069551,"avg neighbours (HR, HU, RO, BG)"
+AL00,5.557661331992151,"avg neighbours (EL, MK)"
+BA00,3.8077944444444447,"avg neighbours (HR, ME)"
+XK00,5.3801488291026764,"avg neighbours (MK, RS00)"
