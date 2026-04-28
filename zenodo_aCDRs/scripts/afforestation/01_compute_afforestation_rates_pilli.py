@@ -165,36 +165,97 @@ def parse_age_values(row, age_cols):
     return np.array(vals)
 
 
-MIN_ROTATION_AGE = 25  # years — skip AgeCL_1 and AgeCL_2 (ages 5, 15)
+MIN_ROTATION_AGE = 25   # years — skip AgeCL_1 and AgeCL_2 (ages 5, 15)
+MAX_ROTATION_AGE = 100  # years — cap for managed commercial forest; yield tables beyond
+                        # this age reflect old-growth dynamics or exclude thinning yields,
+                        # neither of which represents active afforestation practice.
 MIN_VALID_AGE_CLASSES = 3  # require ≥3 age classes with data
 
 
-def compute_rotation_age_and_mai(standing_stock_values):
+def compute_rotation_age_and_mai(standing_stock_values, nai_values=None):
     """
-    Determine optimal rotation age and MAI from standing stock curve.
+    Determine optimal rotation age T* and standing-stock MAI from growth curves.
 
-    Rotation age T is where MAI_vol = stock(T) / T is maximised,
-    subject to T ≥ MIN_ROTATION_AGE (to avoid artifacts at very young ages).
+    T* is the age where the Mean Annual Increment of TOTAL PRODUCTION is maximised,
+    which is equivalent to where the Current Annual Increment (CAI = NAI) crosses
+    the total-production MAI from above — the classical silvicultural rotation age.
+
+    When NAI data are available (preferred path):
+      - Cumulative total production TP(T) = ∫₀ᵀ NAI(t) dt is computed from the
+        Pilli NAI table. This includes thinning yields removed from the stand and
+        therefore correctly represents the full productive capacity of the forest.
+      - T* = argmax TP(T)/T  within [MIN_ROTATION_AGE, MAX_ROTATION_AGE].
+      - MAI_vol returned = V_standing(T*) / T*  (standing stock at T*, NOT total
+        production), because afforestation carbon credits count only carbon remaining
+        in the forest, not thinned material.
+
+    When NAI is unavailable (fallback):
+      - T* = argmax V(T)/T from standing stock within the same window. This is
+        equivalent to the CAI-MAI crossing using standing stock alone, which
+        underestimates T* for managed thinned forests (thinning yields excluded).
+
+    The cap MAX_ROTATION_AGE = 100 yr prevents artefacts in both approaches:
+      - NAI path: handles the rare case where the total-production MAI keeps rising
+        beyond the observed data range.
+      - Standing-stock path: handles quasi-linear growth curves (e.g. PT maritime
+        pine) where the standing-stock MAI has only a trivial late maximum.
+
     Returns (rotation_age_years, mai_vol_m3_ha_yr, rotation_age_class_idx).
     """
-    # Compute MAI at each age class midpoint
-    mai = standing_stock_values / AGE_MIDPOINTS
+    AGE_DURATION = 10.0  # each Pilli age class spans 10 years
 
-    # Only consider age classes with valid data AND age ≥ minimum
-    valid = ~np.isnan(mai) & (AGE_MIDPOINTS >= MIN_ROTATION_AGE)
+    if nai_values is not None:
+        # ── NAI path: total production ─────────────────────────────────────────
+        # Replace NaN / negatives with 0 (missing data = no increment recorded)
+        nai_clean = np.where(np.isnan(nai_values), 0.0, np.maximum(nai_values, 0.0))
+
+        # TP at each age midpoint: sum of preceding full classes + half current class
+        tp = np.zeros(len(AGE_MIDPOINTS))
+        cum = 0.0
+        for i in range(len(AGE_MIDPOINTS)):
+            tp[i] = cum + nai_clean[i] * (AGE_DURATION / 2)
+            cum   += nai_clean[i] * AGE_DURATION
+
+        with np.errstate(invalid="ignore", divide="ignore"):
+            mai_total = np.where(AGE_MIDPOINTS > 0, tp / AGE_MIDPOINTS, np.nan)
+
+        valid = (
+            ~np.isnan(mai_total)
+            & (AGE_MIDPOINTS >= MIN_ROTATION_AGE)
+            & (AGE_MIDPOINTS <= MAX_ROTATION_AGE)
+            & (mai_total > 0)
+        )
+        if valid.sum() >= 1:
+            best_idx = int(np.argmax(np.where(valid, mai_total, -np.inf)))
+            rotation_age = AGE_MIDPOINTS[best_idx]
+
+            # MAI_vol from standing stock at T* (net forest carbon, not thinnings)
+            ss_at_t = standing_stock_values[best_idx]
+            if np.isnan(ss_at_t) or ss_at_t <= 0:
+                # rare: standing stock missing at T* — use nearest valid age
+                ss_valid = standing_stock_values.copy()
+                ss_valid[~(~np.isnan(standing_stock_values) & (standing_stock_values > 0))] = np.nan
+                if not np.all(np.isnan(ss_valid)):
+                    closest = int(np.nanargmin(np.abs(AGE_MIDPOINTS - rotation_age)))
+                    ss_at_t = standing_stock_values[closest]
+                else:
+                    return np.nan, np.nan, -1
+            mai_vol = ss_at_t / rotation_age
+            return rotation_age, mai_vol, best_idx
+
+    # ── Fallback: standing-stock path ──────────────────────────────────────────
+    mai = standing_stock_values / AGE_MIDPOINTS
+    valid = ~np.isnan(mai) & (AGE_MIDPOINTS >= MIN_ROTATION_AGE) & (AGE_MIDPOINTS <= MAX_ROTATION_AGE)
     if valid.sum() < 1:
-        # Fall back: use any valid age class if at least MIN_VALID_AGE_CLASSES exist
         valid_any = ~np.isnan(standing_stock_values)
         if valid_any.sum() < MIN_VALID_AGE_CLASSES:
             return np.nan, np.nan, -1
-        valid = valid_any & (AGE_MIDPOINTS > 0)
+        valid = valid_any & (AGE_MIDPOINTS > 0) & (AGE_MIDPOINTS <= MAX_ROTATION_AGE)
 
-    # Find peak MAI
     mai_valid = np.where(valid, mai, -np.inf)
-    best_idx = np.argmax(mai_valid)
+    best_idx = int(np.argmax(mai_valid))
     rotation_age = AGE_MIDPOINTS[best_idx]
     mai_vol = mai_valid[best_idx]
-
     return rotation_age, mai_vol, best_idx
 
 
@@ -287,19 +348,27 @@ def expand_to_all_nuts2(agg: pd.DataFrame, geojson_path: Path) -> pd.DataFrame:
         nuts = nuts[nuts["LEVL_CODE"] == 2].copy()
     nuts = nuts[["NUTS_ID", "geometry"]].set_index("NUTS_ID").to_crs("EPSG:4326")
 
-    rates = pd.Series(np.nan, index=nuts.index, name="mai_co2_mean")
-    source = pd.Series(pd.NA, index=nuts.index, dtype="string", name="source")
+    # Three series to propagate through the same spatial cascade
+    rates   = pd.Series(np.nan, index=nuts.index, name="mai_co2_mean")
+    density = pd.Series(np.nan, index=nuts.index, name="density_tCO2_ha")
+    rot_age = pd.Series(np.nan, index=nuts.index, name="rotation_age_eff")
+    source  = pd.Series(pd.NA,  index=nuts.index, dtype="string", name="source")
 
     # Translate FR 2021 NUTS2 codes → 2013 before matching against the reference GeoJSON
     agg = agg.copy()
     agg["nuts2"] = agg["nuts2"].map(lambda x: FR_NUTS2021_TO_2013.get(x, x))
 
+    def _fill(nid, row, src_label):
+        rates[nid]   = row["mai_co2_mean"]
+        density[nid] = row["density_tCO2_ha"]
+        rot_age[nid] = row["rotation_age_eff"]
+        source[nid]  = src_label
+
     # ── Step 1: Direct NUTS2 match ────────────────────────────────────────────
     for _, row in agg.iterrows():
         nid = row["nuts2"]
         if nid in rates.index and pd.isna(rates[nid]):
-            rates[nid] = row["mai_co2_mean"]
-            source[nid] = "direct"
+            _fill(nid, row, "direct")
 
     # ── Step 2: NUTS1 propagation (3-char Pilli codes) ───────────────────────
     nuts1_rows = agg[~agg["nuts2"].isin(["NUTS0"]) & (agg["nuts2"].str.len() == 3)]
@@ -307,29 +376,21 @@ def expand_to_all_nuts2(agg: pd.DataFrame, geojson_path: Path) -> pd.DataFrame:
         parent = row["nuts2"]
         children = [rid for rid in rates.index if rid.startswith(parent) and pd.isna(rates[rid])]
         for child in children:
-            rates[child] = row["mai_co2_mean"]
-            source[child] = f"{parent}→NUTS1"
+            _fill(child, row, f"{parent}→NUTS1")
 
     # ── Step 3: Country-level propagation ("NUTS0") ───────────────────────────
-    # COUNTRY_TO_NUTS_PREFIX handles cases where Pilli country code differs from
-    # the NUTS2 prefix (e.g. Pilli uses "GR" but NUTS2 codes start with "EL").
     for _, row in agg[agg["nuts2"] == "NUTS0"].iterrows():
         country = row["country"]
         prefix = COUNTRY_TO_NUTS_PREFIX.get(country, country)
         children = [rid for rid in rates.index if rid[:2] == prefix and pd.isna(rates[rid])]
         for child in children:
-            rates[child] = row["mai_co2_mean"]
-            source[child] = f"{country}→NUTS0"
+            _fill(child, row, f"{country}→NUTS0")
 
     n_missing = int(rates.isna().sum())
     print(f"  After Pilli direct/NUTS1/NUTS0 mapping: {len(rates) - n_missing} filled, "
           f"{n_missing} still missing — applying fallbacks ...")
 
     # ── Step 4: Distance-based neighbour mean, iterated ──────────────────────
-    # Uses a 100 km buffer in EPSG:3035 so sea-crossing neighbours are included:
-    # southern England ← N France/Belgium, Scotland ← N Ireland via NI ← Ireland,
-    # Adriatic islands ← mainland, Baltic islands ← mainland, etc.
-    # Then iterative propagation fills inland from these coastal anchors.
     if rates.isna().any():
         SEA_THRESHOLD_M = 100_000
         gdf = gpd.GeoDataFrame(
@@ -352,8 +413,10 @@ def expand_to_all_nuts2(agg: pd.DataFrame, geojson_path: Path) -> pd.DataFrame:
             for rid in list(rates.index[rates.isna()]):
                 valid = [n for n in neighbors_dict.get(rid, []) if pd.notna(rates[n])]
                 if valid:
-                    rates[rid] = rates[valid].mean()
-                    source[rid] = "avg neighbours (100km)"
+                    rates[rid]   = rates[valid].mean()
+                    density[rid] = density[valid].mean()
+                    rot_age[rid] = rot_age[valid].mean()
+                    source[rid]  = "avg neighbours (100km)"
                     changed = True
         prev = n_missing
         n_missing = int(rates.isna().sum())
@@ -363,63 +426,80 @@ def expand_to_all_nuts2(agg: pd.DataFrame, geojson_path: Path) -> pd.DataFrame:
     # ── Step 5: Country mean of filled regions ────────────────────────────────
     if rates.isna().any():
         nuts0 = rates.index.str[:2]
-        country_mean = rates.groupby(nuts0).mean()
+        country_mean_r = rates.groupby(nuts0).mean()
+        country_mean_d = density.groupby(nuts0).mean()
+        country_mean_t = rot_age.groupby(nuts0).mean()
         for rid in rates.index[rates.isna()]:
             key = rid[:2]
-            if key in country_mean.index and pd.notna(country_mean[key]):
-                rates[rid] = country_mean[key]
-                source[rid] = f"avg country {key}"
+            if key in country_mean_r.index and pd.notna(country_mean_r[key]):
+                rates[rid]   = country_mean_r[key]
+                density[rid] = country_mean_d[key]
+                rot_age[rid] = country_mean_t[key]
+                source[rid]  = f"avg country {key}"
         prev = n_missing
         n_missing = int(rates.isna().sum())
         if n_missing < prev:
             print(f"    Country mean: filled {prev - n_missing} ({n_missing} left).")
 
-    # ── Step 6: Malta / Cyprus → Crete (EL43) ────────────────────────────────
+    # ── Step 6: Isolated island / remote fallbacks ───────────────────────────
+    # MT00, CY00 → Crete (EL43): nearest Mediterranean analog
+    # IS00 → Norway mean: Iceland is beyond the 100 km neighbour threshold
     for code in ["MT00", "CY00"]:
         if code in rates.index and pd.isna(rates[code]):
             if "EL43" in rates.index and pd.notna(rates["EL43"]):
-                rates[code] = rates["EL43"]
-                source[code] = "EL43 copy (Crete)"
+                rates[code]   = rates["EL43"]
+                density[code] = density["EL43"]
+                rot_age[code] = rot_age["EL43"]
+                source[code]  = "EL43 copy (Crete)"
+
+    if "IS00" in rates.index and pd.isna(rates["IS00"]):
+        no_mask = rates.index.str[:2] == "NO"
+        no_r = rates[no_mask].dropna()
+        if not no_r.empty:
+            rates["IS00"]   = no_r.mean()
+            density["IS00"] = density[no_mask].dropna().mean()
+            rot_age["IS00"] = rot_age[no_mask].dropna().mean()
+            source["IS00"]  = "NO avg (Iceland proxy)"
+            print(f"    Step 6 Iceland: IS00 = {rates['IS00']:.3f} tCO₂/ha/yr (Norway mean)")
 
     # ── Step 7: Western Balkans (RS, AL, BA, XK) ─────────────────────────────
-    # These countries are modelled in PyPSA-EUR but absent from the Eurostat
-    # NUTS2 GeoJSON, so they are never created in the rates index above.
-    # We append pseudo-NUTS2 entries (e.g. RS00) using the mean of filled
-    # NUTS2 regions in geographically neighbouring countries.
-    # EXTRA_PYPSA_COUNTRIES is defined above; XK00 uses RS00, so RS00 must
-    # be processed first (dict insertion order is preserved in Python ≥ 3.7).
-    extra_rates = {}
-    extra_source = {}
+    extra_rates   = {}
+    extra_density = {}
+    extra_rotage  = {}
+    extra_source  = {}
     for pseudo_code, neighbour_prefixes in EXTRA_PYPSA_COUNTRIES.items():
-        neighbour_vals = []
+        neighbour_r, neighbour_d, neighbour_t = [], [], []
         for prefix in neighbour_prefixes:
             if prefix.endswith("00"):
-                # Reference a previously added pseudo entry
                 if prefix in extra_rates:
-                    neighbour_vals.append(extra_rates[prefix])
+                    neighbour_r.append(extra_rates[prefix])
+                    neighbour_d.append(extra_density[prefix])
+                    neighbour_t.append(extra_rotage[prefix])
             else:
-                # All NUTS2 of that country
                 mask = rates.index.str[:2] == prefix
-                vals = rates[mask].dropna()
-                if not vals.empty:
-                    neighbour_vals.append(vals.mean())
-        if neighbour_vals:
-            val = float(np.mean(neighbour_vals))
-            extra_rates[pseudo_code]  = val
-            extra_source[pseudo_code] = (
-                f"avg neighbours ({', '.join(neighbour_prefixes)})"
-            )
-            print(f"    Step 7: {pseudo_code} = {val:.3f} tCO₂/ha/yr "
+                vals_r = rates[mask].dropna()
+                vals_d = density[mask].dropna()
+                vals_t = rot_age[mask].dropna()
+                if not vals_r.empty:
+                    neighbour_r.append(vals_r.mean())
+                    neighbour_d.append(vals_d.mean())
+                    neighbour_t.append(vals_t.mean())
+        if neighbour_r:
+            extra_rates[pseudo_code]   = float(np.mean(neighbour_r))
+            extra_density[pseudo_code] = float(np.mean(neighbour_d))
+            extra_rotage[pseudo_code]  = float(np.mean(neighbour_t))
+            extra_source[pseudo_code]  = f"avg neighbours ({', '.join(neighbour_prefixes)})"
+            print(f"    Step 7: {pseudo_code} = {extra_rates[pseudo_code]:.3f} tCO₂/ha/yr "
                   f"(mean of {neighbour_prefixes})")
         else:
             print(f"[warn] Step 7: could not fill {pseudo_code} — "
                   f"no filled neighbours in {neighbour_prefixes}")
 
     if extra_rates:
-        extra_series_r = pd.Series(extra_rates,  name="mai_co2_mean", dtype=float)
-        extra_series_s = pd.Series(extra_source, name="source",       dtype="string")
-        rates  = pd.concat([rates,  extra_series_r])
-        source = pd.concat([source, extra_series_s])
+        rates   = pd.concat([rates,   pd.Series(extra_rates,   name="mai_co2_mean",    dtype=float)])
+        density = pd.concat([density, pd.Series(extra_density, name="density_tCO2_ha", dtype=float)])
+        rot_age = pd.concat([rot_age, pd.Series(extra_rotage,  name="rotation_age_eff",dtype=float)])
+        source  = pd.concat([source,  pd.Series(extra_source,  name="source",          dtype="string")])
 
     # Final report
     n_missing = int(rates.isna().sum())
@@ -429,7 +509,12 @@ def expand_to_all_nuts2(agg: pd.DataFrame, geojson_path: Path) -> pd.DataFrame:
     else:
         print(f"[ok] All {len(rates)} NUTS2 + Western Balkans pseudo-codes covered.")
 
-    out = pd.DataFrame({"CO2 seq rate tCO2/(ha y)": rates, "Source": source})
+    out = pd.DataFrame({
+        "CO2 seq rate tCO2/(ha y)": rates,
+        "density tCO2/ha":          density,
+        "rotation_age_years":       rot_age,
+        "Source":                   source,
+    })
     out.index.name = "NUTS2"
     return out
 
@@ -439,16 +524,28 @@ def compute_rates():
 
     print("Loading data...")
     stock_df = load_standing_stock()
-    bcef_df = load_bcef()
+    nai_df   = load_nai()
+    bcef_df  = load_bcef()
     regions_map = load_regions_mapping()
     forest_codes = load_forest_codes()
 
     print(f"  Standing stock: {len(stock_df)} rows")
+    print(f"  NAI table:      {len(nai_df)} rows")
     print(f"  BCEF database:  {len(bcef_df)} rows")
 
-    # Filter to productive even-aged high forests
+    # Filter both tables to productive even-aged high forests
     stock_filt = filter_productive_evenaged(stock_df)
-    print(f"  After filtering (ForAWS, even-aged, productive): {len(stock_filt)} rows")
+    nai_filt   = filter_productive_evenaged(nai_df)
+    print(f"  After filtering (ForAWS, even-aged, productive): {len(stock_filt)} stock rows")
+
+    # Build a fast NAI lookup: (country, forest_type, region, mgmt_type) → parsed array
+    # Keep the first matching row (mgmt_strategy=E already filtered)
+    nai_lookup = {}
+    for _, nrow in nai_filt.iterrows():
+        key = (nrow["country"], nrow["forest_type"], nrow["region"], nrow["mgmt_type"])
+        if key not in nai_lookup:
+            nai_lookup[key] = parse_age_values(nrow, AGE_COLS)
+    print(f"  NAI lookup keys: {len(nai_lookup)}")
 
     # Build BCEF lookup
     bcef_filt = bcef_df[
@@ -460,6 +557,8 @@ def compute_rates():
 
     # Compute per forest-type × region
     results = []
+    n_nai_used = 0
+    n_nai_fallback = 0
 
     for _, row in stock_filt.iterrows():
         country = row["country"]
@@ -471,8 +570,16 @@ def compute_rates():
         # Parse standing stock values
         stock_vals = parse_age_values(row, AGE_COLS)
 
-        # Find rotation age and volumetric MAI
-        rotation_age, mai_vol, rot_idx = compute_rotation_age_and_mai(stock_vals)
+        # Look up matching NAI row for total-production T* calculation
+        nai_key = (country, forest_type, region, mgmt_type)
+        nai_vals = nai_lookup.get(nai_key)
+        if nai_vals is not None:
+            n_nai_used += 1
+        else:
+            n_nai_fallback += 1
+
+        # Find rotation age and volumetric MAI (NAI path preferred)
+        rotation_age, mai_vol, rot_idx = compute_rotation_age_and_mai(stock_vals, nai_vals)
         if np.isnan(mai_vol) or rot_idx < 0:
             continue
 
@@ -486,6 +593,13 @@ def compute_rates():
         #   MAI_CO2 = MAI_biomass × CF × CO2_C × (1 + RSR)
         mai_biomass = mai_vol * bcef_val
         mai_co2 = mai_biomass * CF * CO2_C * (1 + RSR)
+
+        # Density at rotation age [tCO₂/ha]:
+        #   density = V(T*) × BCEF × CF × CO2_C × (1 + RSR)
+        #           = MAI_CO2 × T*
+        # This is the standing carbon stock at the economically optimal rotation;
+        # used to compute node-specific annualised afforestation costs.
+        density_tco2_ha = mai_co2 * rotation_age
 
         # Map region to NUTS-2
         nuts2_code = regions_map.get((country, region), region)
@@ -501,10 +615,12 @@ def compute_rates():
             "mai_vol_m3_ha_yr": mai_vol,
             "bcef": bcef_val,
             "mai_co2_tCO2_ha_yr": mai_co2,
+            "density_tCO2_ha": density_tco2_ha,
         })
 
     results_df = pd.DataFrame(results)
     print(f"\n  Computed rates for {len(results_df)} forest-type × region combinations")
+    print(f"  T* via NAI total-production: {n_nai_used} rows  |  standing-stock fallback: {n_nai_fallback} rows")
 
     # ── Summary statistics ───────────────────────────────────────────────────
     print("\n" + "=" * 70)
@@ -529,18 +645,28 @@ def compute_rates():
     # Fallback: if only one species group has data in a region (e.g. Portugal
     # has no broadleaf types in Pilli), the available group mean is used directly.
 
-    def aggregate_two_step(grp):
-        """50/50 con/broad blend; falls back to single-group mean if needed."""
-        con_mean   = grp.loc[grp["con_broad"] == "con",   "mai_co2_tCO2_ha_yr"].mean()
-        broad_mean = grp.loc[grp["con_broad"] == "broad", "mai_co2_tCO2_ha_yr"].mean()
-        has_con   = not np.isnan(con_mean)
-        has_broad = not np.isnan(broad_mean)
+    def _two_step_blend(grp, col):
+        """50/50 con/broad blend of `col`; falls back to single-group if needed."""
+        con_val   = grp.loc[grp["con_broad"] == "con",   col].mean()
+        broad_val = grp.loc[grp["con_broad"] == "broad", col].mean()
+        has_con   = not np.isnan(con_val)
+        has_broad = not np.isnan(broad_val)
         if has_con and has_broad:
-            return 0.5 * con_mean + 0.5 * broad_mean
+            return 0.5 * con_val + 0.5 * broad_val
         elif has_con:
-            return con_mean    # only conifers present
+            return con_val
         else:
-            return broad_mean  # only broadleaves present
+            return broad_val
+
+    def aggregate_two_step(grp):
+        """50/50 con/broad blend of MAI rate [tCO₂/ha/yr]."""
+        return _two_step_blend(grp, "mai_co2_tCO2_ha_yr")
+
+    def aggregate_density_two_step(grp):
+        """50/50 con/broad blend of carbon density at rotation [tCO₂/ha].
+        Computed per species group first, then blended — not rate × mean_T —
+        because conifers and broadleaves have different rotation ages."""
+        return _two_step_blend(grp, "density_tCO2_ha")
 
     agg_base = (
         results_df
@@ -565,7 +691,18 @@ def compute_rates():
         .reset_index()
     )
 
+    density_means = (
+        results_df
+        .groupby(["country", "nuts2"])
+        .apply(aggregate_density_two_step, include_groups=False)
+        .rename("density_tCO2_ha")
+        .reset_index()
+    )
+
     agg = agg_base.merge(mai_means, on=["country", "nuts2"])
+    agg = agg.merge(density_means, on=["country", "nuts2"])
+    # Effective rotation age [yr] = density / rate (rate-weighted average of T*)
+    agg["rotation_age_eff"] = agg["density_tCO2_ha"] / agg["mai_co2_mean"]
 
     print("\n" + "=" * 70)
     print("  NUTS-2 AGGREGATED RATES  [tCO₂/ha/yr]  (two-step 50/50 con/broad)")

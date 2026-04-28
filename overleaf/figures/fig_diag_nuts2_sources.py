@@ -13,12 +13,12 @@ Growth (from Source column in afforestation_rates_nuts2_full.csv):
   NUTS0 propagation — Pilli national value propagated to all NUTS2
   Country mean      — mean of resolved NUTS2 in the same country
   Neighbour mean    — mean of NUTS2 regions within 100 km
-  Western Balkans   — pseudo-NUTS2 (RS00/AL00/BA00/XK00)
+                      (includes Western Balkans pseudo-NUTS2: RS00/AL00/BA00/XK00)
 
 Density (matches build_afforestation_potentials.py in pypsa-eur):
   NUTS0 (Avitabile) — country-level AGB density from Avitabile et al.
   Default (117 t/ha) — hardcoded fallback for countries absent from dataset
-  Western Balkans   — pseudo-NUTS2 (RS00/AL00/BA00/XK00) → Default rate
+                       (includes Western Balkans pseudo-NUTS2: RS00/AL00/BA00/XK00)
 
 Note: pypsa-eur applies NO spatial cascade for the density method.
       All NUTS2 within a country receive the same national AGB density.
@@ -62,7 +62,6 @@ GROWTH_CATS = [
     ("NUTS0 propagation",  "#bae4b3"),   # light green
     ("Neighbour mean",     "#fdae6b"),   # orange
     ("Country mean",       "#e6550d"),   # dark orange
-    ("Western Balkans",    "#756bb1"),   # purple
 ]
 GROWTH_CAT_COLOR = dict(GROWTH_CATS)
 GROWTH_CAT_ORDER = [c for c, _ in GROWTH_CATS]
@@ -70,8 +69,7 @@ GROWTH_CAT_ORDER = [c for c, _ in GROWTH_CATS]
 # ── Density source categories & colours (NUTS0-only, as in pypsa-eur) ─────────
 DENSITY_CATS = [
     ("NUTS0 (Avitabile)",  "#2171b5"),   # blue — country-level AGB data exists
-    ("Default (117 t/ha)", "#f7fbff"),   # very light blue — hardcoded fallback
-    ("Western Balkans",    "#756bb1"),   # purple
+    ("Default (117 t/ha)", "#bdbdbd"),   # medium grey — hardcoded fallback
 ]
 DENSITY_CAT_COLOR = dict(DENSITY_CATS)
 DENSITY_CAT_ORDER = [c for c, _ in DENSITY_CATS]
@@ -113,18 +111,15 @@ def classify_growth_source(src: str) -> str:
         return "NUTS0 propagation"
     if s.startswith("avg country"):
         return "Country mean"
-    if s.startswith("avg neighbours") and any(
-            x in s for x in ["HR, HU", "EL, MK", "HR, ME", "MK, RS"]):
-        return "Western Balkans"
     if s.startswith("avg neighbours"):
         return "Neighbour mean"
     return "Unknown"
 
 growth_src = gr["Source"].apply(classify_growth_source)
-# Add Western Balkans pseudo-codes (not in the CSV index, added via Step 7)
+# Western Balkans pseudo-codes receive neighbour mean (missing from Pilli dataset)
 for code in EXTRA_GEOM:
     if code not in growth_src.index:
-        growth_src[code] = "Western Balkans"
+        growth_src[code] = "Neighbour mean"
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. DENSITY SOURCE — NUTS0-only, matching build_afforestation_potentials.py
@@ -157,7 +152,7 @@ for nid in nuts_gdf.index:
 
 # Western Balkans pseudo-codes — use default fallback rate in pypsa-eur
 for code in EXTRA_GEOM:
-    density_src[code] = "Western Balkans"
+    density_src[code] = "Default (117 t/ha)"
 
 n_avitabile = (density_src == "NUTS0 (Avitabile)").sum()
 n_default   = (density_src == "Default (117 t/ha)").sum()
