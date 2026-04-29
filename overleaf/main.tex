@@ -79,7 +79,34 @@ Afforestation was first introduced in PyPSA-eur in \cite{Fernandes2026} as a spa
     \quad [\text{tCO}_2\,\text{yr}^{-1}]
     \label{eq:node_potential}
 \end{equation}
-where $A_r$~[\si{ha}] is the land area available for afforestation in node~$r$, derived from the CORINE Land Cover (CLC) dataset as described in \citet{Fernandes2026}, and $\overline{\text{MAI}}_{\text{CO}_2,\,r}$~[\si{tCO_2\,ha^{-1}\,yr^{-1}}] is the node-level CO$_2$ sequestration rate. The land estimation from CLC is presented in detail in \citet{Fernandes2026} and is identical for both methods described in this document. This section focuses exclusively on the derivation of the CO$_2$ sequestration rates and their temporal disaggregation, and presents a comparison between the updated growth-based method (introduced here) and the original density-based method of \citet{Fernandes2026}. Both methods are currently available in PyPSA-Eur via the \texttt{afforestation[potential\_type]} configuration key.
+where $A_r$~[\si{ha}] is the land area available for afforestation in node~$r$, derived from the CORINE Land Cover (CLC) dataset as described in \citet{Fernandes2026}, and $\overline{\text{MAI}}_{\text{CO}_2,\,r}$ [\si{tCO_2\,ha^{-1}\,yr^{-1}}]
+is the node-level CO$_2$ sequestration rate. The land estimation from CLC is presented in detail in \citet{Fernandes2026} and is identical for both methods described in this document. This section focuses exclusively on the derivation of the CO$_2$ sequestration rates and their temporal disaggregation, and presents a comparison between the updated growth-based method (introduced here) and the original density-based method of \citet{Fernandes2026}. Both methods are available in PyPSA-Eur, selectable via the
+\texttt{potential\_type} key in the \texttt{afforestation} configuration block.
+
+% =============================================================================
+\subsubsection{Key Aspects of this methodology}
+\label{sec:key_aspects}
+
+\paragraph{Key aspects.}
+The method focuses on the estimation of the Mean Annual Increment over the optimal rotation age for a new forest, the optimal rotation age and the forest density (in tCO2 eq.) of the forest at the optimal rotation age.
+The underlying assumption for afforestation is that beyond the optimal rotation age the forest carbon stock must be maintained at least at that density level for the future years, which is in line with EU legislation.
+
+\begin{itemize}[leftmargin=2em]
+
+    \item \textbf{Afforestation potential}.The Afforestation potential per node  (Eq.~\ref{eq:node_potential}) is obtained from Mean Annual Increment during optimal rotaiton age of a new forest.
+    \item \textbf{Compliance with EU legislation}. Beyond the optimal rotation age the forest stock is kept constant, assuming a margin for disturbances and minor harvest. The efficiency is assumed to be 80%.
+    \item \textbf{Cost for afforestation}. The cost for afforestation is obtained from literature (EUR/ha). The cost is annualized using the optimal rotation age rather than a fixed lifetime, reflectign the impact of different growth rates on the investment.
+    \item \item \textbf{Net Annual Increment} (NAI, m$^3$\,ha$^{-1}$\,yr$^{-1}$):
+          merchantable volume growth rate by age class, harmonised across
+          countries using species-specific correction factors for bark,
+          branches, top, and stump components.
+    \item \textbf{Biomass Conversion and Expansion Factors} (BCEF):
+          age-class-resolved factors [t$_{\text{DM}}$\,m$^{-3}$]
+          converting merchantable volume to total aboveground dry
+          biomass, derived from species-specific allometric equations
+          \citep{Boudewyn2007}.
+\end{itemize}
+used in pypsa-eur and the optimal rotation age can be used for discounting of the investment in afforestation, accounting for the different forest growth rates in Europe.
 
 % =============================================================================
 \subsubsection{Annual Sequestration Rate: Pilli et al.\ Yield Table Library}
@@ -98,10 +125,11 @@ and Malta). The library is distributed via Zenodo
           merchantable volume growth rate by age class, harmonised across
           countries using species-specific correction factors for bark,
           branches, top, and stump components.
-    \item \textbf{Biomass Conversion and Expansion Factors} (BCEF,
-          t$_\text{DM}$\,m$^{-3}$): age-class-resolved factors converting
-          merchantable volume to total aboveground dry biomass, derived from
-          species-specific allometric equations \citep{Boudewyn2007}.
+    \item \textbf{Biomass Conversion and Expansion Factors} (BCEF):
+          age-class-resolved factors [t$_\text{DM}$\,m$^{-3}$]
+          converting merchantable volume to total aboveground dry biomass,
+          derived from species-specific allometric equations
+          \citep{Boudewyn2007}.
 \end{itemize}
 
 The data are classified by country, administrative region (mostly NUTS-2),
@@ -151,6 +179,8 @@ Equivalently:
     T^* = \arg\max_{T_\text{min} \leq T \leq T_\text{max}} \frac{\mathrm{TP}(T)}{T}
     \label{eq:rotation_age}
 \end{equation}
+
+Figure~\ref{fig:mai_crcf} on the left illustrates graphical definition of optimal rotation age.
 
 Using total production (NAI-based) rather than net standing stock is critical for
 managed forests subject to repeated thinning. The standing stock records only the
@@ -302,12 +332,12 @@ remote-sensing inputs. The specific dataset used is:
 
 \begin{quote}
 \small
-\texttt{GPP.RS\_METEO.FP-ALL.MLM-ALL.METEO-ERA5.720\_360.daily.\{year\}.nc}\\[2pt]
+{\footnotesize\texttt{GPP.RS\_METEO.FP-ALL.MLM-ALL.METEO-ERA5.720\_360.daily.\{year\}.nc}}\\[2pt]
 Unit: \si{gC\,m^{-2}\,day^{-1}} \quad
 Resolution: \ang{0.5} global \quad
 Years: 2010--2012 (${\approx}\SI{3.6}{GB}$ total)\\
 Source: \citet{Jung2020}; data accessed via anonymous FTP at
-\texttt{ftp.bgc-jena.mpg.de} (Max Planck Institute for Biogeochemistry,
+\texttt{ftp.bgc\allowbreak-jena.mpg.de} (Max Planck Institute for Biogeochemistry,
 Jena, Germany).
 \end{quote}
 
@@ -458,15 +488,7 @@ annualised per-hectare investment divided by the growth rate
 \texttt{``growth''}: this work).
 
 \paragraph{LP formulation.}
-The link \texttt{p\_nom} is fixed to the seasonal peak rate at full deployment:
-\begin{equation}
-    p_{\mathrm{nom},r}
-    = \Pi_r \cdot
-      \frac{\displaystyle\max_{t}\, w_{m(t),r}}
-           {\displaystyle\sum_{t} w_{m(t),r}}
-    \quad [\mathrm{tCO_2\,h^{-1}}]
-    \label{eq:pnom_cap}
-\end{equation}
+The link \texttt{p\_nom} is fixed to the seasonal peak rate at full deployment,
 with \texttt{p\_min\_pu}$\,{=}\,0$ and \texttt{p\_max\_pu}$\,{=}\,1$.
 The optimiser therefore allocates the annual removal $e_{\mathrm{nom,opt},r}
 \le \Pi_r$ freely across the year, subject only to this instantaneous cap.
@@ -474,34 +496,120 @@ Encoding the seasonal profile as time-varying \texttt{p\_min\_pu}$(t)
 {=}$ \texttt{p\_max\_pu}$(t)$ (the previous formulation) would prescribe the
 temporal shape exactly but densely populates the LP constraint matrix
 (${\sim}8760 \times N$ nonzero entries vs.\ a single scalar), increasing
-solve time without affecting the optimised store capacity.
+solve time without increasing the level of details in the results.
 Capping \texttt{p\_nom} at the seasonal peak (Eq.~\ref{eq:pnom_cap}) prevents
 degenerate single-hour spikes while preserving the correct annual total.
 
 \paragraph{Seasonal post-processing.}
-Before temporal plotting, \texttt{afforestation\_postprocess.py} redistributes
-link flows and store state of charge according to the GPP weights:
+Before temporal plotting, \texttt{afforestation\_postprocess.py}
+redistributes link flows and store state of charge per the GPP weights.
+It is called automatically from \texttt{plot\_balance\_\allowbreak timeseries.py}
+and \texttt{plot\_heatmap\_\allowbreak timeseries.py}; all energy-system
+quantities are unchanged.
+
+% =============================================================================
+\subsubsection{Implementation of cost based on optimal rotation age}
+\label{sec:cost }
+\paragraph{Node-specific costs from rotation age and carbon density.}
+The updated growth-method implementation extends the capital cost formula to account for spatially heterogeneous rotation ages $T^*_r$ derived from the Pilli yield-table data (Section~\ref{sec:affo_rate}).  For each NUTS-2 region, the carbon stock accumulated at the MAI optimum defines the \emph{carbon density at rotation}:
 \begin{equation}
-    \Delta e_r(t)
-    = \frac{w_{m(t),r}}{\displaystyle\sum_{t'} w_{m(t'),r}}
-      \cdot e_{\mathrm{nom,opt},r},
-    \qquad
-    p_{0,r}(t) = \Delta e_r(t)\,/\,\eta_{\mathrm{CRCF}}
-    \label{eq:postprocess}
+  \rho^*_r
+  = \overline{\mathrm{MAI}}_{\mathrm{CO}_2,\,r} \times T^*_r
+  \quad [\si{tCO_2\,ha^{-1}}]
+  \label{eq:density_star}
 \end{equation}
-This is called automatically from \texttt{plot\_balance\_timeseries.py} and
-\texttt{plot\_heatmap\_timeseries.py} prior to computing any time-series
-statistics; all energy-system quantities are unchanged.
+This is the total CO$_2$ stored per hectare when the stand is harvested at the economically optimal age, and is directly computable from the Pilli data.  Both $T^*_r$ and $\rho^*_r$ are propagated through the NUTS-2 to network-node spatial overlay as area-weighted averages.
+
+Two annualisation strategies are available, selected via \texttt{use\_discount\_rate} in the \texttt{afforestation} configuration block:
+
+\begin{description}
+  \item[No discounting (\texttt{use\_discount\_rate: false}).]
+  The investment $I$~[\si{EUR\,ha^{-1}}] is spread uniformly over the rotation
+  and expressed per unit of CO$_2$:
+  \[
+    \mathrm{capital\_cost}^{\mathrm{no\text{-}disc}}_r
+    = \frac{I}{\rho^*_r}
+    = \frac{I}{\overline{\mathrm{MAI}}_{\mathrm{CO}_2,\,r} \times T^*_r}
+    \quad [\si{EUR\,tCO_2^{-1}}]
+  \]
+  This is equivalent to dividing the overnight investment equally across the $T^*_r$ years of the rotation---$(I/T^*_r)$---and then expressing the resulting annual payment per unit of annual sequestration.  No interest is charged on capital tied up during the rotation.
+
+  \item[With discounting (\texttt{use\_discount\_rate: true}).]
+  A node-specific annuity factor $\mathrm{a}(r_d,\,T^*_r)$ is applied, where $r_d$ is the project discount rate (config key \texttt{discount\_rate}):
+  \[
+    \mathrm{capital\_cost}^{\mathrm{disc}}_r
+    = \frac{I \times \bigl[\mathrm{a}(r_d,\,T^*_r) + \mathrm{FOM}/100\bigr]}
+           {\overline{\mathrm{MAI}}_{\mathrm{CO}_2,\,r}}
+    \quad [\si{EUR\,tCO_2^{-1}}]
+  \]
+  Because $T^*_r$ enters the annuity, longer-rotation nodes (e.g.\ boreal Scandinavia) face a higher annualised cost than in the no-discount case, reflecting the opportunity cost of capital tied up over a century-long rotation.
+\end{description}
+
+In both cases the cost varies across nodes through the local $T^*_r$ and $\overline{\mathrm{MAI}}_{\mathrm{CO}_2,\,r}$.  Figure~\ref{fig:rotation_density_maps} shows the European spatial distribution of these two quantities using the NAI-based total-production approach (Eq.~\ref{eq:cai_mai_crossing}).  The spatial pattern is ecologically consistent: the longest rotations (85--95~yr, dark red) occur in boreal Scandinavia and Finland --- where slow-growing Scots pine and Norway spruce require long rotations to reach their production peak --- and in Portugal, where maritime pine has a nearly constant growth rate that causes the cap to bind at \SI{95}{yr}.  Central European temperate forests (Germany, Alpine arc) show intermediate rotations of 60--80~yr, while deciduous-dominated western Europe (France, Iberian uplands) has shorter rotations of 30--45~yr.  Carbon densities (right panel) reflect both the rotation age and the absolute growth rate: the highest densities ($\rho^*>400$~\si{tCO_2\,ha^{-1}}) appear in productive central European forests, where moderate-to-high growth rates combine with intermediate rotation ages.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_rotation_density_maps.png}
+    \caption{Spatial distribution of (a)~optimal rotation age $T^*$ (years) and
+    (b)~carbon density at the MAI optimum $\rho^* = \overline{\mathrm{MAI}}_{\mathrm{CO}_2} \times T^*$
+    (\si{tCO_2\,ha^{-1}}) across NUTS-2 regions, with $T^*$ capped at \SI{100}{yr}
+    (Eq.~\ref{eq:rotation_age}).
+    Data from the Pilli yield-table library \citep{Pilli2024Zenodo}, aggregated via the
+    two-step conifer/broadleaf blending procedure (Section~\ref{sec:affo_rate}).
+    The colour scale for rotation age spans the observed data range after capping;
+    densities above \SI{500}{tCO_2\,ha^{-1}} are shown at the maximum colour value.
+    Grey regions are absent from the Pilli dataset and receive country-mean or
+    neighbour-based fallback values.}
+    \label{fig:rotation_density_maps}
+\end{figure}
+
+Figure~\ref{fig:affo_pypsa_comparison_capex} shows the resulting spatial distribution of
+capital costs at NUTS-2 level under both methods, computed without discounting ($r=0$).
+In the growth method, the cost varies substantially across NUTS-2 regions because it depends on the
+local rotation age $T^*_r$ and the region-specific MAI: boreal regions (Scandinavia, Finland)
+and slow-rotation forests (Portugal) carry higher unit costs, while productive temperate forests
+in central Europe (France, Germany) have lower costs.
+In the density method, costs vary only at country level because the underlying Avitabile biomass
+density is a national-level statistic; spatial variation within a country is absent.
+Both methods yield area-weighted average costs of similar magnitude (140--190~\si{EUR\,tCO_2^{-1}}),
+confirming that the choice of formula matters less than the local forest growth characteristics.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fig_affo_pypsa_comparison_capex.png}
+    \caption{Capital cost of afforestation CDR at NUTS-2 level [\si{EUR\,tCO_2^{-1}}],
+    computed without discounting ($r=0$) using 2030 technology costs
+    ($I=9743$~\si{EUR\,ha^{-1}}, $\mathrm{FOM}=5\,\%\,\mathrm{yr}^{-1}$, $L=30\,\mathrm{yr}$).
+    (a)~Growth method: $I\cdot(1/T^*_r+\mathrm{FOM})/\overline{\mathrm{MAI}}_{\mathrm{CO}_2,\,r}$,
+    using the region-specific rotation age $T^*_r$ from the Pilli yield-table data.
+    (b)~Density method: $(I+\mathrm{FOM}\cdot L\cdot I)/(\rho_{\mathrm{wood}}\cdot c)$,
+    where $\rho_{\mathrm{wood}}$ is the national-level biomass density from \citet{Avitabile2024}
+    and $c=1.83$~\si{tCO_2\,t_{DM}^{-1}}.
+    Grey regions lack biomass data and use a European fallback of 117~\si{t_{DM}\,ha^{-1}}.
+    Area-weighted averages are shown in the panel footers.}
+    \label{fig:affo_pypsa_comparison_capex}
+\end{figure}
+
+
+% =============================================================================
+\subsubsection{Limitations}
+\label{sec:Limitations}
+
+\paragraph{Limitations}
+The method presented here has some limitations. The method does not allow for the introduction of species and forest managemt types if not already present in a region. This limit can lead both to an under estimation of the potential (preventing the introduction of extint but productive species in an region) or over estimation due to the application of the NUTS2 propagation mechanism. Biodiversity is considered only using a conservative assumption on the conifer/broadleaf blending. In general the two main sources of uncertanity on the afforestation potential are lack of data in some European regions and the estimation of the Land availale for afforestation from CLC.
+
+
 
 % =============================================================================
 \subsubsection{Results and Validation}
 \label{sec:affo_results}
 
 The computed rotation-averaged sequestration rates range from
-\SIrange{2.1}{12.6}{tCO_2\per ha\per yr} across 114~NUTS-2 regions with
-direct Pilli data, with a European median of \SI{5.2}{tCO_2\per ha\per yr}
-and mean of \SI{5.5}{tCO_2\per ha\per yr}. These values are consistent with
-the \SIrange{5}{15}{tCO_2\per ha\per yr} range reported for temperate European
+2.1 to 12.6~\si{tCO_2\,ha^{-1}\,yr^{-1}}
+across 114~NUTS-2 regions with
+direct Pilli data, with a European median of 5.2~\si{tCO_2\,ha^{-1}\,yr^{-1}}
+and mean of 5.5~\si{tCO_2\,ha^{-1}\,yr^{-1}}. These values are consistent with
+the 5--15~\si{tCO_2\,ha^{-1}\,yr^{-1}} range reported for temperate European
 afforestation in the literature \citep{Nabuurs2013, Avitabile2024}.
 
 As a validation case, the five Danish NUTS-2 regions yield rates of
@@ -713,7 +821,7 @@ reflecting the uniform $w_{m,r}=1/12$ seasonal profile of the density method.
     \caption{Annual CO$_2$ bus balance for the growth method (top) and the density method
     (bottom), at 168-h temporal resolution (90-node model, 2050).
     The \texttt{co2 afforestation} component is shown in green (top) and as a thin green band
-    (bottom). In the growth case the seasonal signal—peaking in spring and summer—is recovered
+    (bottom). In the growth case the seasonal signal---peaking in spring and summer---is recovered
     by \texttt{afforestation\_postprocess.py} before plotting.
     In the density case, afforestation acts as a constant sink ($w_{m,r}=1/12$).}
     \label{fig:ts_co2_balance}
@@ -729,7 +837,7 @@ The CRCF efficiency discount $\eta = 0.8$ is applied only in the growth method.
 For the density method, potentials are reported at both the intrinsic rate $\tilde{r}$
 (before $f_{\text{land}} = 0.6$) and the scaled rate used in the optimisation.}
 \label{tab:affo_pypsa_summary}
-\begin{tabular}{lcc}
+\begin{tabular}{@{}p{7.5cm}cc@{}}
 \toprule
 \textbf{Indicator} & \textbf{Growth method} & \textbf{Density method} \\
 \midrule
@@ -744,11 +852,19 @@ Wtd.\ avg.\ capital cost [\si{EUR\,tCO_2^{-1}}]                      & 286   & 1
 \bottomrule
 \end{tabular}
 \par\vspace{4pt}
-{\footnotesize \textsuperscript{a}The growth method does not apply a separate $f_{\text{land}}$ scaling; the land-utilisation assumption is embedded in the rotation-averaged MAI calculation.}
+{\footnotesize \textsuperscript{a}The growth method does not apply a
+separate $f_{\text{land}}$ scaling; the land-utilisation assumption
+is embedded in the rotation-averaged MAI calculation.}
 \end{table}
 
 \paragraph{Discussion: capital cost calculation.}
-The two methods compute the afforestation capital cost differently, and the density-method formula contains a dimensional inconsistency. The relevant code in \texttt{prepare\_sector\_network.py} is reproduced below for comparison (original density-mode implementation: \url{https://github.com/ricnogfer/pypsa-eur/blob/c1e990cd634cf236e0fbcedcb46570057177ed6f/scripts/prepare_sector_network.py\#L1037--L1048}).
+The two methods compute the afforestation capital cost differently,
+and the density-method formula contains a dimensional inconsistency.
+The relevant code in
+\texttt{prepare\_sector\_network.py} is reproduced
+below for comparison (original density-mode implementation)\footnote{%
+  \href{https://github.com/ricnogfer/pypsa-eur/blob/c1e990cd634cf236e0fbcedcb46570057177ed6f/scripts/prepare_sector_network.py\#L1037--L1048}{%
+    ricnogfer/pypsa-eur, \texttt{prepare\_sector\_network.py}, lines 1037--1048}.}.
 
 \medskip
 
@@ -760,9 +876,12 @@ maintenance_cost = (
     * costs.at["Afforestation", "lifetime"]                  # (yr)
 )
 # UNIT: EUR/ha * (%) * yr  -->  EUR*yr/ha
-capital_cost = (investment_cost + maintenance_cost) \
-               / (densities * co2_per_tonne)
-# UNIT: (EUR/ha + EUR*yr/ha) / (t_DM/ha * t_CO2/t_DM) = EUR/tCO2 * (1 + yr) Dimensionally incostitent!!
+capital_cost = (
+    (investment_cost + maintenance_cost)
+    / (densities * co2_per_tonne)
+)
+# Units: (EUR/ha + EUR*yr/ha) / (t_DM/ha * t_CO2/t_DM)
+#       = EUR/tCO2 * (1 + yr)  -- dimensionally inconsistent!
 \end{verbatim}
 
 \noindent The numerator adds \si{EUR\,ha^{-1}} (the full overnight investment) to
@@ -808,80 +927,6 @@ CO$_2$ quantity rather than an \emph{annual} rate.  Even if the dimensional
 inconsistency in the O\&M term is resolved by treating, the result is still economically inconsistent with the growth
 method: it implicitly assumes a zero discount rate (CRF $= 1/n$) rather than
 applying the project discount rate used throughout PyPSA-Eur.
-
-\paragraph{Node-specific costs from rotation age and carbon density.}
-The updated growth-method implementation extends the capital cost formula to account for spatially heterogeneous rotation ages $T^*_r$ derived from the Pilli yield-table data (Section~\ref{sec:affo_rate}).  For each NUTS-2 region, the carbon stock accumulated at the MAI optimum defines the \emph{carbon density at rotation}:
-\begin{equation}
-  \rho^*_r
-  = \overline{\mathrm{MAI}}_{\mathrm{CO}_2,\,r} \times T^*_r
-  \quad [\si{tCO_2\,ha^{-1}}]
-  \label{eq:density_star}
-\end{equation}
-This is the total CO$_2$ stored per hectare when the stand is harvested at the economically optimal age, and is directly computable from the Pilli data.  Both $T^*_r$ and $\rho^*_r$ are propagated through the NUTS-2 to network-node spatial overlay as area-weighted averages.
-
-Two annualisation strategies are implemented, controlled by the \texttt{afforestation[use\_discount\_rate]} configuration key:
-
-\begin{description}
-  \item[No discounting (default, \texttt{use\_discount\_rate: false}).]
-  The investment $I$~[\si{EUR\,ha^{-1}}] is spread uniformly over the rotation and expressed per unit of CO$_2$:
-  \[
-    \mathrm{capital\_cost}^{\mathrm{no\text{-}disc}}_r
-    = \frac{I}{\rho^*_r}
-    = \frac{I}{\overline{\mathrm{MAI}}_{\mathrm{CO}_2,\,r} \times T^*_r}
-    \quad [\si{EUR\,tCO_2^{-1}}]
-  \]
-  This is equivalent to dividing the overnight investment equally across the $T^*_r$ years of the rotation---$(I/T^*_r)$---and then expressing the resulting annual payment per unit of annual sequestration.  No interest is charged on capital tied up during the rotation.
-
-  \item[With discounting (\texttt{use\_discount\_rate: true}).]
-  A node-specific annuity factor $\mathrm{a}(r_d,\,T^*_r)$ is applied, where $r_d$ is the project discount rate taken from \texttt{costs[fill\_values][discount\_rate]}:
-  \[
-    \mathrm{capital\_cost}^{\mathrm{disc}}_r
-    = \frac{I \times \bigl[\mathrm{a}(r_d,\,T^*_r) + \mathrm{FOM}/100\bigr]}
-           {\overline{\mathrm{MAI}}_{\mathrm{CO}_2,\,r}}
-    \quad [\si{EUR\,tCO_2^{-1}}]
-  \]
-  Because $T^*_r$ enters the annuity, longer-rotation nodes (e.g.\ boreal Scandinavia) face a higher annualised cost than in the no-discount case, reflecting the opportunity cost of capital tied up over a century-long rotation.
-\end{description}
-
-In both cases the cost varies across nodes through the local $T^*_r$ and $\overline{\mathrm{MAI}}_{\mathrm{CO}_2,\,r}$.  Figure~\ref{fig:rotation_density_maps} shows the European spatial distribution of these two quantities using the NAI-based total-production approach (Eq.~\ref{eq:cai_mai_crossing}).  The spatial pattern is ecologically consistent: the longest rotations (85--95~yr, dark red) occur in boreal Scandinavia and Finland --- where slow-growing Scots pine and Norway spruce require long rotations to reach their production peak --- and in Portugal, where maritime pine has a nearly constant growth rate that causes the cap to bind at \SI{95}{yr}.  Central European temperate forests (Germany, Alpine arc) show intermediate rotations of 60--80~yr, while deciduous-dominated western Europe (France, Iberian uplands) has shorter rotations of 30--45~yr.  Carbon densities (right panel) reflect both the rotation age and the absolute growth rate: the highest densities ($\rho^*>400$~\si{tCO_2\,ha^{-1}}) appear in productive central European forests, where moderate-to-high growth rates combine with intermediate rotation ages.
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{figures/fig_rotation_density_maps.png}
-    \caption{Spatial distribution of (a)~optimal rotation age $T^*$ (years) and
-    (b)~carbon density at the MAI optimum $\rho^* = \overline{\mathrm{MAI}}_{\mathrm{CO}_2} \times T^*$
-    (\si{tCO_2\,ha^{-1}}) across NUTS-2 regions, with $T^*$ capped at \SI{100}{yr}
-    (Eq.~\ref{eq:rotation_age}).
-    Data from the Pilli yield-table library \citep{Pilli2024Zenodo}, aggregated via the
-    two-step conifer/broadleaf blending procedure (Section~\ref{sec:affo_rate}).
-    The colour scale for rotation age spans the observed data range after capping;
-    densities above \SI{500}{tCO_2\,ha^{-1}} are shown at the maximum colour value.
-    Grey regions are absent from the Pilli dataset and receive country-mean or
-    neighbour-based fallback values.}
-    \label{fig:rotation_density_maps}
-\end{figure}
-
-Figure~\ref{fig:affo_pypsa_comparison_capex} shows the resulting spatial distribution of
-capital costs across all network nodes for both methods.
-In the growth method, the cost varies substantially across nodes because it reflects
-local species composition and rotation-averaged MAI: nodes with slower-growing forests
-(e.g.\ northern Sweden, southern Portugal) carry higher costs per tonne, while productive
-temperate forests in France and Germany have lower unit costs.
-In the density method, costs vary only at country level (since the underlying density is
-national-level) and are generally lower because the overnight investment is divided by
-a larger cumulative CO$_2$ stock, underestimating the annualised cost.
-The weighted-average capital costs (weighted by optimally deployed potential $e_{\mathrm{nom,opt}}$)
-are reported in the panel footers and in Table~\ref{tab:affo_pypsa_summary}.
-
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{figures/fig_affo_pypsa_comparison_capex.png}
-    \caption{Capital cost of afforestation CDR per network node [\si{EUR\,tCO_2^{-1}}]
-    for (a)~the growth method and (b)~the density method with $f_{\text{land}}=0.6$ scaling.
-    The growth method produces spatially heterogeneous costs driven by local MAI;
-    the density method varies only at country level.}
-    \label{fig:affo_pypsa_comparison_capex}
-\end{figure}
 
 % =============================================================================
 \newpage

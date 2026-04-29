@@ -138,7 +138,24 @@ ax1.set_title("(a)  Forest growth dynamics")
 ax1.set_xlim(0, 155)
 ax1.set_ylim(0)
 ax1.xaxis.set_minor_locator(MultipleLocator(10))
-ax1.legend(loc="upper right", frameon=False, handlelength=1.5)
+
+# Right axis: accumulated carbon stock [tCO2/ha]
+STOCK_COLOR = "#5e35b1"   # purple — distinct from CAI/MAI blues and oranges
+ax1r = ax1.twinx()
+ax1r.plot(ages, cum_vals, color=STOCK_COLOR, lw=1.5, ls="-.",
+          label="Cumul. stock  (tCO$_2$ ha$^{-1}$)")
+ax1r.set_ylabel("Cumulative stock (tCO$_2$ ha$^{-1}$)", color=STOCK_COLOR)
+ax1r.tick_params(axis="y", colors=STOCK_COLOR, labelsize=8)
+ax1r.spines["right"].set_visible(True)
+ax1r.spines["right"].set_color(STOCK_COLOR)
+ax1r.spines["right"].set_linewidth(0.8)
+ax1r.set_ylim(0)
+
+# Combined legend from both axes
+handles1, labels1 = ax1.get_legend_handles_labels()
+handles1r, labels1r = ax1r.get_legend_handles_labels()
+ax1.legend(handles1 + handles1r, labels1 + labels1r,
+           loc="upper right", frameon=False, handlelength=1.5)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Panel B – cumulative stock decomposition
