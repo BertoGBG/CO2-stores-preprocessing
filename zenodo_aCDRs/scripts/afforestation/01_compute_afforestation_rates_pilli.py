@@ -318,7 +318,8 @@ EXTRA_PYPSA_COUNTRIES = {
 }
 
 
-def expand_to_all_nuts2(agg: pd.DataFrame, geojson_path: Path) -> pd.DataFrame:
+def expand_to_all_nuts2(agg: pd.DataFrame, country_agg: pd.DataFrame,
+                        geojson_path: Path) -> pd.DataFrame:
     """
     Map Pilli-computed rates to ALL NUTS2 regions in the reference GeoJSON,
     plus pseudo-NUTS2 entries for Western Balkan countries present in PyPSA-EUR
@@ -389,6 +390,24 @@ def expand_to_all_nuts2(agg: pd.DataFrame, geojson_path: Path) -> pd.DataFrame:
     n_missing = int(rates.isna().sum())
     print(f"  After Pilli direct/NUTS1/NUTS0 mapping: {len(rates) - n_missing} filled, "
           f"{n_missing} still missing — applying fallbacks ...")
+
+    # ── Step 3.5: Country rescue from the country's OWN Pilli data ────────────
+    # Some countries hold real Pilli growth data under region codes that do not
+    # resolve to a NUTS-2/NUTS-1 identifier (e.g. Polish ecoregions BT/CP/...,
+    # Finnish internal regions FI_N/FI_S, or outdated NUTS vintages). Their rates
+    # are computed but never placed by Steps 1-3. Here we fill their still-missing
+    # NUTS-2 regions from the country-level con/broad blend (country_agg), so the
+    # country's own data is used in preference to foreign neighbour means.
+    n_before = int(rates.isna().sum())
+    for _, row in country_agg.iterrows():
+        prefix = COUNTRY_TO_NUTS_PREFIX.get(row["country"], row["country"])
+        for child in [rid for rid in rates.index
+                      if rid[:2] == prefix and pd.isna(rates[rid])]:
+            _fill(child, row, f"{row['country']}→country (Pilli)")
+    n_missing = int(rates.isna().sum())
+    if n_missing < n_before:
+        print(f"  Country rescue (own Pilli data): filled {n_before - n_missing} "
+              f"({n_missing} still missing).")
 
     # ── Step 4: Distance-based neighbour mean, iterated ──────────────────────
     if rates.isna().any():
@@ -704,6 +723,18 @@ def compute_rates():
     # Effective rotation age [yr] = density / rate (rate-weighted average of T*)
     agg["rotation_age_eff"] = agg["density_tCO2_ha"] / agg["mai_co2_mean"]
 
+    # Country-level blend (same two-step con/broad average over ALL forest types
+    # of a country) used by the country-rescue fallback in expand_to_all_nuts2,
+    # so countries whose region codes do not resolve to NUTS-2 are filled from
+    # their own Pilli data rather than from foreign neighbours.
+    c_mai = (results_df.groupby("country")
+             .apply(aggregate_two_step, include_groups=False).rename("mai_co2_mean"))
+    c_dens = (results_df.groupby("country")
+              .apply(aggregate_density_two_step, include_groups=False).rename("density_tCO2_ha"))
+    country_agg = pd.concat([c_mai, c_dens], axis=1).reset_index()
+    country_agg["rotation_age_eff"] = (
+        country_agg["density_tCO2_ha"] / country_agg["mai_co2_mean"])
+
     print("\n" + "=" * 70)
     print("  NUTS-2 AGGREGATED RATES  [tCO₂/ha/yr]  (two-step 50/50 con/broad)")
     print("=" * 70)
@@ -740,7 +771,7 @@ def compute_rates():
     # Full coverage: all 320 NUTS2 regions with fallback cascade
     if NUTS2_GEOJSON.exists():
         print("\nExpanding to all NUTS2 regions in reference GeoJSON ...")
-        full_df = expand_to_all_nuts2(agg, NUTS2_GEOJSON)
+        full_df = expand_to_all_nuts2(agg, country_agg, NUTS2_GEOJSON)
         full_path = out_dir / "afforestation_rates_nuts2_full.csv"
         full_df.to_csv(full_path)
         print(f"  Saved full NUTS-2 rates: {full_path}")
